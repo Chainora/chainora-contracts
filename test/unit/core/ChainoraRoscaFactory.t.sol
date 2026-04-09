@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Types} from "src/libraries/Types.sol";
 import {Errors} from "src/libraries/Errors.sol";
+import {ChainoraRoscaPool} from "src/pool/ChainoraRoscaPool.sol";
 import {ChainoraTestBase} from "test/helpers/ChainoraTestBase.t.sol";
 
 contract ChainoraRoscaFactoryTest is ChainoraTestBase {
@@ -18,8 +19,7 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
             targetMembers: 3,
             periodDuration: 7 days,
             contributionWindow: 2 days,
-            auctionWindow: 1 days,
-            maxCycles: 2
+            auctionWindow: 1 days
         });
 
         vm.prank(member1);
@@ -27,6 +27,7 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
 
         assertEq(secondPoolId, 2);
         assertEq(factory.poolById(2), secondPool);
+        assertEq(uint256(ChainoraRoscaPool(secondPool).maxCycles()), uint256(cfg.targetMembers));
     }
 
     function testCreatePoolRevertsForUnverifiedCreator() external {
@@ -35,8 +36,7 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
             targetMembers: 3,
             periodDuration: 7 days,
             contributionWindow: 2 days,
-            auctionWindow: 1 days,
-            maxCycles: 2
+            auctionWindow: 1 days
         });
 
         vm.prank(outsider);
@@ -48,5 +48,37 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
         vm.prank(outsider);
         vm.expectRevert(Errors.Unauthorized.selector);
         registry.setStablecoin(address(token));
+    }
+
+    function testCreatePoolRevertsWhenNoIdleWindow() external {
+        deviceAdapter.setVerified(member1, true);
+
+        Types.PoolConfig memory cfg = Types.PoolConfig({
+            contributionAmount: CONTRIBUTION,
+            targetMembers: 3,
+            periodDuration: 7 days,
+            contributionWindow: 4 days,
+            auctionWindow: 3 days
+        });
+
+        vm.prank(member1);
+        vm.expectRevert(Errors.InvalidConfig.selector);
+        factory.createPool(cfg);
+    }
+
+    function testCreatePoolRevertsWhenTargetMembersExceedsDerivedMaxCyclesRange() external {
+        deviceAdapter.setVerified(member1, true);
+
+        Types.PoolConfig memory cfg = Types.PoolConfig({
+            contributionAmount: CONTRIBUTION,
+            targetMembers: 256,
+            periodDuration: 7 days,
+            contributionWindow: 2 days,
+            auctionWindow: 1 days
+        });
+
+        vm.prank(member1);
+        vm.expectRevert(Errors.InvalidConfig.selector);
+        factory.createPool(cfg);
     }
 }

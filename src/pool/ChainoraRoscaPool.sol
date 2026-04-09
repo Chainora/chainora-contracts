@@ -29,13 +29,14 @@ contract ChainoraRoscaPool is
         }
 
         Types.PoolConfig memory cfg = initConfig.config;
-        if (cfg.contributionAmount == 0 || cfg.targetMembers < 2 || cfg.maxCycles == 0) {
+        if (cfg.contributionAmount == 0 || cfg.targetMembers < 2) {
             revert Errors.InvalidConfig();
         }
+        if (cfg.targetMembers > type(uint8).max) revert Errors.InvalidConfig();
         if (cfg.periodDuration == 0 || cfg.contributionWindow == 0 || cfg.auctionWindow == 0) {
             revert Errors.InvalidConfig();
         }
-        if (cfg.contributionWindow + cfg.auctionWindow > cfg.periodDuration) {
+        if (cfg.contributionWindow + cfg.auctionWindow >= cfg.periodDuration) {
             revert Errors.InvalidConfig();
         }
 
@@ -52,7 +53,7 @@ contract ChainoraRoscaPool is
         _periodDuration = cfg.periodDuration;
         _contributionWindow = cfg.contributionWindow;
         _auctionWindow = cfg.auctionWindow;
-        _maxCycles = cfg.maxCycles;
+        _maxCycles = uint8(cfg.targetMembers);
 
         _poolStatus = Types.PoolStatus.Forming;
 

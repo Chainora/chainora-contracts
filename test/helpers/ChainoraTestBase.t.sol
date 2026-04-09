@@ -66,8 +66,7 @@ abstract contract ChainoraTestBase is Test {
             targetMembers: 3,
             periodDuration: 7 days,
             contributionWindow: 2 days,
-            auctionWindow: 1 days,
-            maxCycles: 2
+            auctionWindow: 1 days
         });
 
         vm.prank(creator);

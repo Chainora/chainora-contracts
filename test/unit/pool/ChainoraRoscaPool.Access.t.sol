@@ -24,9 +24,34 @@ contract ChainoraRoscaPoolAccessTest is ChainoraTestBase {
     }
 
     function testOnlyActiveMemberCanFinalize() external {
+        uint64 startAt = _reachPayoutOpenWithBid();
+
+        vm.prank(outsider);
+        vm.expectRevert(Errors.NotActiveMember.selector);
+        pool.finalizePeriod();
+
+        vm.warp(uint256(startAt) + uint256(pool.periodDuration()) + 1);
+
+        vm.prank(member1);
+        pool.finalizePeriod();
+
+        assertEq(pool.currentPeriod(), 2);
+    }
+
+    function testFinalizeRevertsBeforePeriodEnd() external {
+        _reachPayoutOpenWithBid();
+
+        vm.prank(member1);
+        vm.expectRevert(Errors.DeadlineNotReached.selector);
+        pool.finalizePeriod();
+    }
+
+    function _reachPayoutOpenWithBid() internal returns (uint64 startAt) {
         _contributeAllActive();
 
-        (,, uint64 contributionDeadline, uint64 auctionDeadline,,,,,,,) = pool.periodInfo(1, 1);
+        uint64 contributionDeadline;
+        uint64 auctionDeadline;
+        (, startAt, contributionDeadline, auctionDeadline,,,,,,,) = pool.periodInfo(1, 1);
         vm.warp(uint256(contributionDeadline) + 1);
 
         vm.prank(member1);
@@ -39,9 +64,5 @@ contract ChainoraRoscaPoolAccessTest is ChainoraTestBase {
 
         vm.prank(member1);
         pool.claimPayout();
-
-        vm.prank(outsider);
-        vm.expectRevert(Errors.NotActiveMember.selector);
-        pool.finalizePeriod();
     }
 }

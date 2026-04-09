@@ -30,6 +30,15 @@ Mock adapters are available in `src/adapters/mocks` for tests and local simulati
 - `script/deploy/ConfigureRegistry.s.sol`
 - `script/deploy/CreatePool.s.sol`
 
+### Pool Creation Notes
+
+- Smart contracts keep `createPool(Types.PoolConfig)` as the creation interface.
+- Frontend preset options (3 days / 1 week / 1 month / 3 months, etc.) should be mapped to `PoolConfig` values before calling contracts.
+- Pool config invariants:
+  - `maxCycles` is derived on-chain from `targetMembers` (no input field needed in `PoolConfig`).
+  - `targetMembers` must be in the range `[2, 255]`.
+  - `contributionWindow + auctionWindow` must be strictly less than `periodDuration` (the remaining time is idle).
+
 ### Tests
 
 - Unit tests: `test/unit`

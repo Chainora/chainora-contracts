@@ -22,7 +22,6 @@ library Types {
         uint32 periodDuration;
         uint32 contributionWindow;
         uint32 auctionWindow;
-        uint8 maxCycles;
     }
 
     struct PoolInitConfig {
