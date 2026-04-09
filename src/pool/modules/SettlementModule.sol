@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Errors} from "src/libraries/Errors.sol";
 import {SafeTransferLibExt} from "src/libraries/SafeTransferLibExt.sol";
+import {PeriodMath} from "src/libraries/PeriodMath.sol";
 import {Types} from "src/libraries/Types.sol";
 import {PoolStorage} from "src/pool/modules/PoolStorage.sol";
 
@@ -39,6 +40,9 @@ abstract contract SettlementModule is PoolStorage {
         PeriodState storage period = _currentPeriodStorage();
         if (period.status != Types.PeriodStatus.PayoutOpen) revert Errors.InvalidState();
         if (!period.payoutClaimed) revert Errors.PayoutUnavailable();
+        if (block.timestamp < PeriodMath.periodEnd(period.startAt, _periodDuration)) {
+            revert Errors.DeadlineNotReached();
+        }
 
         period.status = Types.PeriodStatus.Finalized;
         emit ChainoraPeriodFinalized(_currentCycle, _currentPeriod);

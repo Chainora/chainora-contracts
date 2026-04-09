@@ -101,7 +101,7 @@ Scripts are in `script/deploy/*.s.sol` and rely on environment variables.
 - `CHAINORA_PERIOD_DURATION`
 - `CHAINORA_CONTRIBUTION_WINDOW`
 - `CHAINORA_AUCTION_WINDOW`
-- `CHAINORA_MAX_CYCLES`
+- `CHAINORA_MAX_CYCLES` is no longer required; max cycles is derived from `CHAINORA_TARGET_MEMBERS`
 
 ## 8) Code Style And Patterns
 

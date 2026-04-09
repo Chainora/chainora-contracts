@@ -80,12 +80,12 @@ contract ChainoraRoscaFactory is Events {
     function _validateConfig(Types.PoolConfig calldata config) private pure {
         if (config.contributionAmount == 0) revert Errors.InvalidConfig();
         if (config.targetMembers < 2) revert Errors.InvalidConfig();
+        if (config.targetMembers > type(uint8).max) revert Errors.InvalidConfig();
         if (config.periodDuration == 0 || config.contributionWindow == 0 || config.auctionWindow == 0) {
             revert Errors.InvalidConfig();
         }
-        if (config.contributionWindow + config.auctionWindow > config.periodDuration) {
+        if (config.contributionWindow + config.auctionWindow >= config.periodDuration) {
             revert Errors.InvalidConfig();
         }
-        if (config.maxCycles == 0) revert Errors.InvalidConfig();
     }
 }

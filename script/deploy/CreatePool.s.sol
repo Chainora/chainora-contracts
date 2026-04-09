@@ -15,8 +15,7 @@ contract CreatePool is Script {
             targetMembers: uint16(vm.envOr("CHAINORA_TARGET_MEMBERS", uint256(5))),
             periodDuration: uint32(vm.envOr("CHAINORA_PERIOD_DURATION", uint256(7 days))),
             contributionWindow: uint32(vm.envOr("CHAINORA_CONTRIBUTION_WINDOW", uint256(2 days))),
-            auctionWindow: uint32(vm.envOr("CHAINORA_AUCTION_WINDOW", uint256(1 days))),
-            maxCycles: uint8(vm.envOr("CHAINORA_MAX_CYCLES", uint256(2)))
+            auctionWindow: uint32(vm.envOr("CHAINORA_AUCTION_WINDOW", uint256(1 days)))
         });
 
         vm.startBroadcast(signerKey);

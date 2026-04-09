@@ -29,7 +29,7 @@ contract RoscaLifecycleIntegrationTest is ChainoraTestBase {
     function _finishPeriodWithBid(address bidder, uint256 discount) internal {
         _contributeAllActive();
 
-        (,, uint64 contributionDeadline, uint64 auctionDeadline,,,,,,,) =
+        (, uint64 startAt, uint64 contributionDeadline, uint64 auctionDeadline,,,,,,,) =
             pool.periodInfo(pool.currentCycle(), pool.currentPeriod());
 
         vm.warp(uint256(contributionDeadline) + 1);
@@ -45,6 +45,8 @@ contract RoscaLifecycleIntegrationTest is ChainoraTestBase {
         vm.prank(bidder);
         pool.claimPayout();
 
+        vm.warp(uint256(startAt) + uint256(pool.periodDuration()) + 1);
+
         vm.prank(member1);
         pool.finalizePeriod();
     }
@@ -52,7 +54,7 @@ contract RoscaLifecycleIntegrationTest is ChainoraTestBase {
     function _finishPeriodWithFallback(address expectedRecipient, uint256 recipientScore) internal {
         _contributeAllActive();
 
-        (,, uint64 contributionDeadline, uint64 auctionDeadline,,,,,,,) =
+        (, uint64 startAt, uint64 contributionDeadline, uint64 auctionDeadline,,,,,,,) =
             pool.periodInfo(pool.currentCycle(), pool.currentPeriod());
 
         reputationAdapter.setScore(expectedRecipient, recipientScore);
@@ -68,6 +70,8 @@ contract RoscaLifecycleIntegrationTest is ChainoraTestBase {
 
         vm.prank(expectedRecipient);
         pool.claimPayout();
+
+        vm.warp(uint256(startAt) + uint256(pool.periodDuration()) + 1);
 
         vm.prank(creator);
         pool.finalizePeriod();
