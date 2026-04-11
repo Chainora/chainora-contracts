@@ -8,12 +8,19 @@ abstract contract Events {
     event ChainoraRegistryDeviceAdapterSet(address indexed oldValue, address indexed newValue);
     event ChainoraRegistryReputationAdapterSet(address indexed oldValue, address indexed newValue);
     event ChainoraRegistryStakingAdapterSet(address indexed oldValue, address indexed newValue);
+    event ChainoraDeviceTrustVerifierSet(address indexed verifier, bool allowed);
+    event ChainoraDeviceVerified(address indexed user, address indexed verifier, uint256 indexed nonce);
+    event ChainoraDeviceVerificationRevoked(address indexed user, uint256 nextNonce);
 
     event ChainoraUpgraded(address indexed newImplementation);
 
     event ChainoraInviteProposed(uint256 indexed proposalId, address indexed candidate, address indexed proposer);
     event ChainoraInviteVoted(uint256 indexed proposalId, address indexed voter, bool support);
     event ChainoraInviteAccepted(uint256 indexed proposalId, address indexed member);
+    event ChainoraJoinRequestSubmitted(uint256 indexed requestId, address indexed applicant);
+    event ChainoraJoinRequestVoted(uint256 indexed requestId, address indexed voter, bool support);
+    event ChainoraJoinRequestCanceled(uint256 indexed requestId, address indexed applicant);
+    event ChainoraJoinRequestAccepted(uint256 indexed requestId, address indexed applicant);
     event ChainoraPoolActivated(uint256 indexed cycleId, uint64 periodStartAt);
 
     event ChainoraContributionPaid(

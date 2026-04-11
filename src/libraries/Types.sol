@@ -29,6 +29,19 @@ library Types {
         address creator;
         address registry;
         address stablecoin;
+        bool publicRecruitment;
         PoolConfig config;
+    }
+
+    struct PoolDiscoveryView {
+        uint256 poolId;
+        address pool;
+        address creator;
+        bool publicRecruitment;
+        bool listed;
+        PoolStatus poolStatus;
+        uint256 activeMemberCount;
+        uint16 targetMembers;
+        uint256 contributionAmount;
     }
 }
