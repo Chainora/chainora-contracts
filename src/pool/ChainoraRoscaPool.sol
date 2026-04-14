@@ -8,7 +8,7 @@ import {MembershipModule} from "src/pool/modules/MembershipModule.sol";
 import {ContributionModule} from "src/pool/modules/ContributionModule.sol";
 import {AuctionModule} from "src/pool/modules/AuctionModule.sol";
 import {SettlementModule} from "src/pool/modules/SettlementModule.sol";
-import {PauseRecoveryModule} from "src/pool/modules/PauseRecoveryModule.sol";
+import {DefaultArchiveModule} from "src/pool/modules/DefaultArchiveModule.sol";
 import {ExtensionModule} from "src/pool/modules/ExtensionModule.sol";
 
 contract ChainoraRoscaPool is
@@ -17,7 +17,7 @@ contract ChainoraRoscaPool is
     ContributionModule,
     AuctionModule,
     SettlementModule,
-    PauseRecoveryModule,
+    DefaultArchiveModule,
     ExtensionModule
 {
     function initialize(Types.PoolInitConfig calldata initConfig) external {
@@ -39,6 +39,7 @@ contract ChainoraRoscaPool is
         if (cfg.contributionWindow + cfg.auctionWindow >= cfg.periodDuration) {
             revert Errors.InvalidConfig();
         }
+        if (initConfig.creatorReputationSnapshot <= cfg.minReputation) revert Errors.InsufficientReputation();
 
         _initialized = true;
         _factory = msg.sender;
@@ -47,8 +48,10 @@ contract ChainoraRoscaPool is
         _registry = initConfig.registry;
         _stablecoin = initConfig.stablecoin;
         _creator = initConfig.creator;
+        _publicRecruitment = initConfig.publicRecruitment;
 
         _contributionAmount = cfg.contributionAmount;
+        _minReputation = cfg.minReputation;
         _targetMembers = cfg.targetMembers;
         _periodDuration = cfg.periodDuration;
         _contributionWindow = cfg.contributionWindow;
@@ -58,6 +61,7 @@ contract ChainoraRoscaPool is
         _poolStatus = Types.PoolStatus.Forming;
 
         _addMember(initConfig.creator);
+        _memberReputationSnapshot[initConfig.creator] = initConfig.creatorReputationSnapshot;
     }
 
     function proposeInvite(address candidate) external returns (uint256 proposalId) {
@@ -68,8 +72,24 @@ contract ChainoraRoscaPool is
         _voteInvite(msg.sender, proposalId, support);
     }
 
-    function acceptInviteAndLockDeposit(uint256 proposalId) external {
-        _acceptInviteAndLockDeposit(msg.sender, proposalId);
+    function acceptInvite(uint256 proposalId) external {
+        _acceptInvite(msg.sender, proposalId);
+    }
+
+    function submitJoinRequest() external returns (uint256 requestId) {
+        requestId = _submitJoinRequest(msg.sender);
+    }
+
+    function voteJoinRequest(uint256 requestId, bool support) external {
+        _voteJoinRequest(msg.sender, requestId, support);
+    }
+
+    function acceptJoinRequest(uint256 requestId) external {
+        _acceptJoinRequest(msg.sender, requestId);
+    }
+
+    function cancelJoinRequest(uint256 requestId) external {
+        _cancelJoinRequest(msg.sender, requestId);
     }
 
     function contribute() external {
@@ -96,12 +116,8 @@ contract ChainoraRoscaPool is
         _finalizePeriod(msg.sender);
     }
 
-    function markDefaultAndPause(address defaultedMember) external {
-        _markDefaultAndPause(msg.sender, defaultedMember);
-    }
-
-    function voteContinueAfterPause(bool support) external {
-        _voteContinueAfterPause(msg.sender, support);
+    function markDefaultAndArchive(address defaultedMember) external {
+        _markDefaultAndArchive(msg.sender, defaultedMember);
     }
 
     function voteExtendCycle(bool support) external {
@@ -110,6 +126,10 @@ contract ChainoraRoscaPool is
 
     function archive() external {
         _archive(msg.sender);
+    }
+
+    function claimArchiveRefund() external {
+        _claimArchiveRefund(msg.sender);
     }
 
     function leaveAfterArchive() external {
@@ -152,8 +172,16 @@ contract ChainoraRoscaPool is
         return _contributionAmount;
     }
 
+    function publicRecruitment() external view returns (bool) {
+        return _publicRecruitment;
+    }
+
     function targetMembers() external view returns (uint16) {
         return _targetMembers;
+    }
+
+    function minReputation() external view returns (uint256) {
+        return _minReputation;
     }
 
     function periodDuration() external view returns (uint32) {
@@ -188,8 +216,8 @@ contract ChainoraRoscaPool is
         return _isActiveMember[account];
     }
 
-    function memberDeposit(address account) external view returns (uint256) {
-        return _memberDeposit[account];
+    function memberReputationSnapshot(address account) external view returns (uint256) {
+        return _memberReputationSnapshot[account];
     }
 
     function inviteProposal(uint256 proposalId)
@@ -202,6 +230,18 @@ contract ChainoraRoscaPool is
         yesVotes = proposal.yesVotes;
         noVotes = proposal.noVotes;
         open = proposal.open;
+    }
+
+    function joinRequest(uint256 requestId)
+        external
+        view
+        returns (address applicant, uint256 yesVotes, uint256 noVotes, bool open)
+    {
+        JoinRequest storage request = _joinRequests[requestId];
+        applicant = request.applicant;
+        yesVotes = request.yesVotes;
+        noVotes = request.noVotes;
+        open = request.open;
     }
 
     function periodInfo(uint256 cycleId, uint256 periodId)
@@ -247,19 +287,12 @@ contract ChainoraRoscaPool is
         return _claimableYield[member];
     }
 
-    function cycleCompleted() external view returns (bool) {
-        return _cycleCompleted;
+    function claimableArchiveRefund(address member) external view returns (uint256) {
+        return _claimableArchiveRefund[member];
     }
 
-    function pauseVoteState()
-        external
-        view
-        returns (bool open, uint256 round, uint256 yesVotes, address defaultedMember)
-    {
-        open = _pauseVoteOpen;
-        round = _pauseVoteRound;
-        yesVotes = _pauseYesVotes;
-        defaultedMember = _defaultedMember;
+    function cycleCompleted() external view returns (bool) {
+        return _cycleCompleted;
     }
 
     function extendVoteState() external view returns (bool open, uint256 round, uint256 yesVotes) {

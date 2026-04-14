@@ -295,7 +295,6 @@ const txHash = await walletClient.writeContract({
 **Description**: Allows the pool contract to transfer stablecoins from a member account.
 
 **Why it is required**:
-- `acceptInviteAndLockDeposit()` uses `transferFrom`
 - `contribute()` uses `transferFrom`
 
 **Call**:
@@ -412,14 +411,14 @@ await walletClient.writeContract({
 
 ---
 
-### 4.3. `acceptInviteAndLockDeposit(uint256 proposalId)`
+### 4.3. `acceptInvite(uint256 proposalId)`
 
-**Description**: Allows the invited account to accept membership and lock the required deposit.
+**Description**: Allows the invited account to accept membership after invite quorum is reached.
 
 **Call**:
 
 ```solidity
-function acceptInviteAndLockDeposit(uint256 proposalId) external
+function acceptInvite(uint256 proposalId) external
 ```
 
 **Parameters**:
@@ -432,7 +431,6 @@ function acceptInviteAndLockDeposit(uint256 proposalId) external
 - proposal must still be open
 - caller must be the invited candidate
 - yes votes must be at least two-thirds of the current active member count
-- caller must approve the pool to spend `contributionAmount`
 
 **Common revert cases**:
 - `Errors.InvalidState()`
@@ -448,16 +446,9 @@ function acceptInviteAndLockDeposit(uint256 proposalId) external
 
 ```ts
 await inviteeWallet.writeContract({
-  address: STABLECOIN_ADDRESS,
-  abi: erc20Abi,
-  functionName: 'approve',
-  args: [POOL_ADDRESS, contributionAmount],
-})
-
-await inviteeWallet.writeContract({
   address: POOL_ADDRESS,
   abi: poolAbi,
-  functionName: 'acceptInviteAndLockDeposit',
+  functionName: 'acceptInvite',
   args: [proposalId],
 })
 ```
@@ -734,16 +725,16 @@ await walletClient.writeContract({
 
 ---
 
-## 6. Pause and Recovery Commands
+## 6. Default and Archive Refund Commands
 
-### 6.1. `markDefaultAndPause(address defaultedMember)`
+### 6.1. `markDefaultAndArchive(address defaultedMember)`
 
-**Description**: Marks a missed contribution as default, consumes one deposit amount from the defaulted member, removes that member from the active set, and pauses the pool.
+**Description**: Marks a missed contribution as default, archives the pool immediately, and credits archive refunds to members who already contributed in the interrupted period.
 
 **Call**:
 
 ```solidity
-function markDefaultAndPause(address defaultedMember) external
+function markDefaultAndArchive(address defaultedMember) external
 ```
 
 **Parameters**:
@@ -759,17 +750,16 @@ function markDefaultAndPause(address defaultedMember) external
 - current time must be at or after `contributionDeadline`
 - defaulted member must still be active
 - defaulted member must not have contributed in the period
-- defaulted member deposit must be at least `contributionAmount`
 
 **Common revert cases**:
 - `Errors.NotActiveMember()`
 - `Errors.InvalidState()`
 - `Errors.InvalidConfig()`
 - `Errors.DeadlineNotReached()`
-- `Errors.ContributionMissing()`
 
-**Event**:
-- `ChainoraPoolPaused(address defaultedMember, uint256 cycleId, uint256 periodId)`
+**Events**:
+- `ChainoraPoolArchivedOnDefault(address defaultedMember, uint256 cycleId, uint256 periodId)`
+- `ChainoraPoolArchived()`
 
 **Example**:
 
@@ -777,45 +767,37 @@ function markDefaultAndPause(address defaultedMember) external
 await walletClient.writeContract({
   address: POOL_ADDRESS,
   abi: poolAbi,
-  functionName: 'markDefaultAndPause',
+  functionName: 'markDefaultAndArchive',
   args: [defaultedMember],
 })
 ```
 
 ---
 
-### 6.2. `voteContinueAfterPause(bool support)`
+### 6.2. `claimArchiveRefund()`
 
-**Description**: Lets remaining active members vote to continue a paused pool.
+**Description**: Lets a member withdraw their contribution back after the pool was archived mid-period due to a default.
 
 **Call**:
 
 ```solidity
-function voteContinueAfterPause(bool support) external
+function claimArchiveRefund() external
 ```
-
-**Parameters**:
-- `support`: `true` to continue, `false` to vote no
 
 **Response**: None
 
 **Requirements**:
-- caller must be an active member
-- pool status must be `Paused`
-- pause vote must be open
-- caller must not have voted already in the current pause round
-
-**Resume rule**:
-- unanimity among current active members resumes the pool
+- caller must be a member
+- pool status must be `Archived`
+- caller must have a non-zero archive refund balance
 
 **Common revert cases**:
-- `Errors.NotActiveMember()`
-- `Errors.InvalidState()`
-- `Errors.AlreadyVoted()`
+- `Errors.NotMember()`
+- `Errors.PoolNotArchived()`
+- `Errors.PayoutUnavailable()`
 
-**Events**:
-- `ChainoraContinueVoted(address voter, bool support, uint256 yesVotes, uint256 requiredVotes)`
-- `ChainoraPoolResumed(uint256 cycleId, uint256 nextPeriodId)`
+**Event**:
+- `ChainoraArchiveRefundClaimed(address member, uint256 amount)`
 
 **Example**:
 
@@ -823,8 +805,7 @@ function voteContinueAfterPause(bool support) external
 await walletClient.writeContract({
   address: POOL_ADDRESS,
   abi: poolAbi,
-  functionName: 'voteContinueAfterPause',
-  args: [true],
+  functionName: 'claimArchiveRefund',
 })
 ```
 
@@ -899,7 +880,6 @@ function archive() external
 **Requirements**:
 - caller must be a member
 - pool must be one of these:
-  - `Paused`
   - `Active` with completed cycle and open extend vote
   - already `Archived`
 
@@ -941,6 +921,7 @@ function leaveAfterArchive() external
 - pool status must be `Archived`
 - caller must not have left before
 - caller must have no claimable yield remaining
+- caller must have no claimable archive refund remaining
 
 **Common revert cases**:
 - `Errors.NotMember()`
@@ -972,8 +953,7 @@ await walletClient.writeContract({
 **Response values**:
 - `0`: `Forming`
 - `1`: `Active`
-- `2`: `Paused`
-- `3`: `Archived`
+- `2`: `Archived`
 
 **Example**:
 
@@ -1051,13 +1031,12 @@ Use these reads frequently in UI or backend state sync:
 - `members()`
 - `isMember(address)`
 - `isActiveMember(address)`
-- `memberDeposit(address)`
 - `inviteProposal(uint256)`
 - `hasContributed(uint256,uint256,address)`
 - `hasReceivedInCycle(uint256,address)`
 - `claimableYield(address)`
+- `claimableArchiveRefund(address)`
 - `cycleCompleted()`
-- `pauseVoteState()`
 - `extendVoteState()`
 - `hasLeftArchive(address)`
 
@@ -1081,7 +1060,7 @@ const [currentCycle, currentPeriod, activeMemberCount, cycleCompleted] = await P
 | `ChainoraPoolCreated` | New pool was created |
 | `ChainoraInviteProposed` | New member proposal was created |
 | `ChainoraInviteVoted` | Invite vote state changed |
-| `ChainoraInviteAccepted` | Candidate accepted invite and locked deposit |
+| `ChainoraInviteAccepted` | Candidate accepted invite and became a member |
 | `ChainoraPoolActivated` | Pool became active or started a new cycle |
 | `ChainoraContributionPaid` | A member contributed for the current period |
 | `ChainoraBidSubmitted` | Auction bid state changed |
@@ -1089,9 +1068,8 @@ const [currentCycle, currentPeriod, activeMemberCount, cycleCompleted] = await P
 | `ChainoraPayoutClaimed` | Recipient claimed payout |
 | `ChainoraYieldClaimed` | Member claimed yield |
 | `ChainoraPeriodFinalized` | Period closed and next period or cycle logic advanced |
-| `ChainoraPoolPaused` | Pool entered paused state after a default |
-| `ChainoraContinueVoted` | Pause recovery vote state changed |
-| `ChainoraPoolResumed` | Pool resumed from pause |
+| `ChainoraPoolArchivedOnDefault` | Pool was archived immediately because a member defaulted |
+| `ChainoraArchiveRefundClaimed` | Member reclaimed a contribution from an interrupted period |
 | `ChainoraExtendVoted` | End-of-cycle vote state changed |
 | `ChainoraPoolArchived` | Pool entered archived state |
 | `ChainoraLeftPool` | Member left an archived pool |
@@ -1116,7 +1094,7 @@ const [currentCycle, currentPeriod, activeMemberCount, cycleCompleted] = await P
 | `DeadlineNotReached()` | Function requires a later timestamp |
 | `DeadlinePassed()` | Function missed its valid time window |
 | `AlreadyContributed()` | Caller already contributed in this period |
-| `ContributionMissing()` | Required contribution or deposit coverage is missing |
+| `ContributionMissing()` | Required current-period contributions are still missing |
 | `AuctionNotOpen()` | Auction path is not open |
 | `AuctionAlreadyClosed()` | Recipient is already selected |
 | `NoEligibleRecipient()` | No eligible active member remains |
@@ -1145,9 +1123,8 @@ const [currentCycle, currentPeriod, activeMemberCount, cycleCompleted] = await P
 ```text
 1. Member proposes candidate with proposeInvite(candidate)
 2. Existing members vote with voteInvite(proposalId, support)
-3. Candidate approves stablecoin to pool
-4. Candidate calls acceptInviteAndLockDeposit(proposalId)
-5. When targetMembers is reached, pool emits ChainoraPoolActivated
+3. Candidate calls acceptInvite(proposalId)
+4. When targetMembers is reached, pool emits ChainoraPoolActivated and opens period 1 in `Collecting`
 ```
 
 ### 11.3. Run one period
@@ -1162,14 +1139,13 @@ const [currentCycle, currentPeriod, activeMemberCount, cycleCompleted] = await P
 7. After period end, active member calls finalizePeriod()
 ```
 
-### 11.4. Handle default and continue
+### 11.4. Handle default and archive
 
 ```text
 1. Wait until contributionDeadline passes
-2. Active member calls markDefaultAndPause(defaultedMember)
-3. Remaining active members call voteContinueAfterPause(true/false)
-4. If unanimity is reached, pool emits ChainoraPoolResumed
-5. Otherwise members may archive through archive()
+2. Active member calls markDefaultAndArchive(defaultedMember)
+3. Pool emits ChainoraPoolArchivedOnDefault and ChainoraPoolArchived
+4. Members who already contributed call claimArchiveRefund()
 ```
 
 ### 11.5. End-of-cycle decision
@@ -1186,7 +1162,7 @@ const [currentCycle, currentPeriod, activeMemberCount, cycleCompleted] = await P
 ## 12. Integration Notes
 
 1. **Approval Management**:
-   - members must approve the pool before deposit and contribution flows
+   - members must approve the pool before contribution flows
    - missing allowance causes token transfer failure
 
 2. **State Management**:
@@ -1197,8 +1173,9 @@ const [currentCycle, currentPeriod, activeMemberCount, cycleCompleted] = await P
    - if no bid is submitted, the protocol falls back to eligible members
    - if a reputation adapter exists, it may determine the selected recipient
 
-4. **Pause and Archive Semantics**:
-   - a default removes the member from the active set immediately
+4. **Default and Archive Semantics**:
+   - a default during `Collecting` archives the pool immediately
+   - members who already contributed in the interrupted period can reclaim that contribution with `claimArchiveRefund()`
    - archive is terminal for runtime activity
    - `leaveAfterArchive()` is bookkeeping only and does not withdraw funds automatically
 

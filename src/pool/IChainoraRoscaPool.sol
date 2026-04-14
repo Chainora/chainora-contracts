@@ -5,4 +5,41 @@ import {Types} from "src/libraries/Types.sol";
 
 interface IChainoraRoscaPool {
     function initialize(Types.PoolInitConfig calldata initConfig) external;
+
+    function acceptInvite(uint256 proposalId) external;
+
+    function submitJoinRequest() external returns (uint256 requestId);
+
+    function voteJoinRequest(uint256 requestId, bool support) external;
+
+    function acceptJoinRequest(uint256 requestId) external;
+
+    function cancelJoinRequest(uint256 requestId) external;
+
+    function markDefaultAndArchive(address defaultedMember) external;
+
+    function claimArchiveRefund() external;
+
+    function creator() external view returns (address);
+
+    function poolStatus() external view returns (Types.PoolStatus);
+
+    function contributionAmount() external view returns (uint256);
+
+    function targetMembers() external view returns (uint16);
+
+    function minReputation() external view returns (uint256);
+
+    function activeMemberCount() external view returns (uint256);
+
+    function publicRecruitment() external view returns (bool);
+
+    function memberReputationSnapshot(address account) external view returns (uint256);
+
+    function claimableArchiveRefund(address member) external view returns (uint256);
+
+    function joinRequest(uint256 requestId)
+        external
+        view
+        returns (address applicant, uint256 yesVotes, uint256 noVotes, bool open);
 }

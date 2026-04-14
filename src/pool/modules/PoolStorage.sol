@@ -5,11 +5,23 @@ import {Types} from "src/libraries/Types.sol";
 import {Errors} from "src/libraries/Errors.sol";
 import {Events} from "src/libraries/Events.sol";
 import {PeriodMath} from "src/libraries/PeriodMath.sol";
+import {IChainoraRoscaFactory} from "src/core/IChainoraRoscaFactory.sol";
 import {IChainoraProtocolRegistry} from "src/core/IChainoraProtocolRegistry.sol";
+import {IChainoraReputationAdapter} from "src/adapters/interfaces/IChainoraReputationAdapter.sol";
 
 abstract contract PoolStorage is Events {
     struct InviteProposal {
         address candidate;
+        uint256 reputationSnapshot;
+        uint256 yesVotes;
+        uint256 noVotes;
+        bool open;
+        mapping(address => bool) voted;
+    }
+
+    struct JoinRequest {
+        address applicant;
+        uint256 reputationSnapshot;
         uint256 yesVotes;
         uint256 noVotes;
         bool open;
@@ -38,8 +50,10 @@ abstract contract PoolStorage is Events {
     address internal _registry;
     address internal _stablecoin;
     address internal _creator;
+    bool internal _publicRecruitment;
 
     uint256 internal _contributionAmount;
+    uint256 internal _minReputation;
     uint16 internal _targetMembers;
     uint32 internal _periodDuration;
     uint32 internal _contributionWindow;
@@ -55,23 +69,21 @@ abstract contract PoolStorage is Events {
     address[] internal _members;
     mapping(address => bool) internal _isMember;
     mapping(address => bool) internal _isActiveMember;
-    mapping(address => uint256) internal _memberDeposit;
+    mapping(address => uint256) internal _memberReputationSnapshot;
     uint256 internal _activeMemberCount;
 
     uint256 internal _inviteProposalCount;
     mapping(uint256 => InviteProposal) internal _inviteProposals;
+    uint256 internal _joinRequestCount;
+    mapping(uint256 => JoinRequest) internal _joinRequests;
+    mapping(address => uint256) internal _openJoinRequestOf;
 
     mapping(uint256 => mapping(uint256 => PeriodState)) internal _periods;
     mapping(uint256 => mapping(address => bool)) internal _hasReceivedInCycle;
     mapping(uint256 => uint256) internal _cycleMemberCount;
 
     mapping(address => uint256) internal _claimableYield;
-
-    uint256 internal _pauseVoteRound;
-    mapping(uint256 => mapping(address => bool)) internal _pauseVoted;
-    bool internal _pauseVoteOpen;
-    uint256 internal _pauseYesVotes;
-    address internal _defaultedMember;
+    mapping(address => uint256) internal _claimableArchiveRefund;
 
     uint256 internal _extendVoteRound;
     mapping(uint256 => mapping(address => bool)) internal _extendVoted;
@@ -178,5 +190,21 @@ abstract contract PoolStorage is Events {
 
     function _stakingAdapter() internal view returns (address) {
         return IChainoraProtocolRegistry(_registry).stakingAdapter();
+    }
+
+    function _deviceAdapter() internal view returns (address) {
+        return IChainoraProtocolRegistry(_registry).deviceAdapter();
+    }
+
+    function _reputationScoreOf(address account) internal view returns (uint256) {
+        address reputationAdapter = _reputationAdapter();
+        if (reputationAdapter == address(0)) return 0;
+        return IChainoraReputationAdapter(reputationAdapter).scoreOf(account);
+    }
+
+    function _syncRecruitingPool() internal {
+        if (_publicRecruitment) {
+            IChainoraRoscaFactory(_factory).syncRecruitingPool();
+        }
     }
 }
