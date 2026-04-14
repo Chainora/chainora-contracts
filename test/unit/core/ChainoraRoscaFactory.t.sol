@@ -126,6 +126,8 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
 
         assertEq(factory.recruitingPoolCount(), 1);
 
+        _verifyUser(outsider);
+
         vm.prank(member1);
         uint256 secondInvite = secondPool.proposeInvite(outsider);
         vm.prank(member1);

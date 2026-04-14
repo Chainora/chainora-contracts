@@ -143,6 +143,33 @@ contract ChainoraRoscaPoolPublicRecruitmentTest is ChainoraTestBase {
         restrictedPool.proposeInvite(member2);
     }
 
+    function testInviteRevertsForUnverifiedCandidate() external {
+        (ChainoraRoscaPool restrictedPool,) = _createPoolFor(member1, true, 3);
+
+        vm.prank(member1);
+        vm.expectRevert(Errors.Unauthorized.selector);
+        restrictedPool.proposeInvite(outsider);
+    }
+
+    function testAcceptInviteRevertsAfterVerificationIsRevoked() external {
+        _verifyUser(member2);
+        (ChainoraRoscaPool restrictedPool,) = _createPoolFor(member1, true, 3);
+        _approvePoolFor(address(restrictedPool), member2);
+
+        vm.prank(member1);
+        uint256 inviteId = restrictedPool.proposeInvite(member2);
+
+        vm.prank(address(timelock));
+        deviceAdapter.revokeUser(member2);
+
+        vm.prank(member1);
+        restrictedPool.voteInvite(inviteId, true);
+
+        vm.prank(member2);
+        vm.expectRevert(Errors.Unauthorized.selector);
+        restrictedPool.acceptInvite(inviteId);
+    }
+
     function testJoinRequestSnapshotIsFixedAtRequestTime() external {
         _verifyUser(outsider);
         reputationAdapter.setScore(member1, 10);
@@ -238,5 +265,22 @@ contract ChainoraRoscaPoolPublicRecruitmentTest is ChainoraTestBase {
         vm.prank(outsider);
         vm.expectRevert(Errors.Unauthorized.selector);
         publicPool.submitJoinRequest();
+    }
+
+    function testAcceptJoinRequestRevertsAfterVerificationIsRevoked() external {
+        _verifyUser(outsider);
+
+        vm.prank(outsider);
+        uint256 requestId = publicPool.submitJoinRequest();
+
+        vm.prank(address(timelock));
+        deviceAdapter.revokeUser(outsider);
+
+        vm.prank(member1);
+        publicPool.voteJoinRequest(requestId, true);
+
+        vm.prank(outsider);
+        vm.expectRevert(Errors.Unauthorized.selector);
+        publicPool.acceptJoinRequest(requestId);
     }
 }
