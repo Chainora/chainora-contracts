@@ -39,6 +39,7 @@ contract ChainoraRoscaPool is
         if (cfg.contributionWindow + cfg.auctionWindow >= cfg.periodDuration) {
             revert Errors.InvalidConfig();
         }
+        if (initConfig.creatorReputationSnapshot <= cfg.minReputation) revert Errors.InsufficientReputation();
 
         _initialized = true;
         _factory = msg.sender;
@@ -50,6 +51,7 @@ contract ChainoraRoscaPool is
         _publicRecruitment = initConfig.publicRecruitment;
 
         _contributionAmount = cfg.contributionAmount;
+        _minReputation = cfg.minReputation;
         _targetMembers = cfg.targetMembers;
         _periodDuration = cfg.periodDuration;
         _contributionWindow = cfg.contributionWindow;
@@ -59,6 +61,7 @@ contract ChainoraRoscaPool is
         _poolStatus = Types.PoolStatus.Forming;
 
         _addMember(initConfig.creator);
+        _memberReputationSnapshot[initConfig.creator] = initConfig.creatorReputationSnapshot;
     }
 
     function proposeInvite(address candidate) external returns (uint256 proposalId) {
@@ -177,6 +180,10 @@ contract ChainoraRoscaPool is
         return _targetMembers;
     }
 
+    function minReputation() external view returns (uint256) {
+        return _minReputation;
+    }
+
     function periodDuration() external view returns (uint32) {
         return _periodDuration;
     }
@@ -211,6 +218,10 @@ contract ChainoraRoscaPool is
 
     function memberDeposit(address account) external view returns (uint256) {
         return _memberDeposit[account];
+    }
+
+    function memberReputationSnapshot(address account) external view returns (uint256) {
+        return _memberReputationSnapshot[account];
     }
 
     function inviteProposal(uint256 proposalId)

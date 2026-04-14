@@ -11,6 +11,10 @@ abstract contract Events {
     event ChainoraDeviceTrustVerifierSet(address indexed verifier, bool allowed);
     event ChainoraDeviceVerified(address indexed user, address indexed verifier, uint256 indexed nonce);
     event ChainoraDeviceVerificationRevoked(address indexed user, uint256 nextNonce);
+    event ChainoraReputationTrustVerifierSet(address indexed verifier, bool allowed);
+    event ChainoraReputationScoreUpdated(
+        address indexed user, address indexed verifier, uint256 score, uint256 indexed nonce
+    );
 
     event ChainoraUpgraded(address indexed newImplementation);
 

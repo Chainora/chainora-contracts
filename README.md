@@ -55,16 +55,18 @@ The CLI contains three branches:
 
 - `Deploy`
   - `Bootstrap Core`
-  - `Deploy Timelock`
-  - `Deploy Registry`
-  - `Deploy Device Adapter`
-  - `Deploy Pool Implementation`
-  - `Deploy Factory`
-  - `Deploy ChainoraTestUSD`
+- `Deploy Timelock`
+- `Deploy Registry`
+- `Deploy Device Adapter`
+- `Deploy Reputation Adapter`
+- `Deploy Pool Implementation`
+- `Deploy Factory`
+- `Deploy ChainoraTestUSD`
 - `Admin`
   - `Registry > setStablecoin | setDeviceAdapter | setReputationAdapter | setStakingAdapter`
   - `Factory > setRegistry | setPoolImplementation`
   - `Device Adapter > setTrustVerifier | revokeUser`
+  - `Reputation Adapter > setTrustVerifier`
 - `Timelock Utilities`
   - `Inspect Operation`
   - `Cancel Operation`
@@ -86,6 +88,7 @@ Keep only long-lived values in `.env`:
 - `CHAINORA_TIMELOCK`
 - `CHAINORA_REGISTRY`
 - `CHAINORA_DEVICE_ADAPTER`
+- `CHAINORA_REPUTATION_ADAPTER`
 - `CHAINORA_POOL_IMPLEMENTATION`
 - `CHAINORA_FACTORY`
 - `CHAINORA_TEST_STABLECOIN`
@@ -104,8 +107,15 @@ Successful deploys auto-sync the relevant persistent addresses into `.env`. Some
 4. Use `Admin` to schedule and execute timelock-managed updates such as:
    - setting the stablecoin
    - switching `deviceAdapter`
+   - switching `reputationAdapter`
    - switching `poolImplementation`
 5. Use `Timelock Utilities` to inspect or cancel pending operations when needed.
+
+### Reputation scoring flow
+
+- Contracts only store and verify reputation scores; they do not calculate score deltas onchain.
+- Backend services can discover completed pools from `ChainoraPoolArchived()` and backfill that pool's event history to compute final score changes.
+- After computing final scores offchain, a trusted verifier signs a batch update and a relayer submits it to `ChainoraReputationAdapter`.
 
 ### Current Tooling Gap
 

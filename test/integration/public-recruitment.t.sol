@@ -13,6 +13,7 @@ contract PublicRecruitmentIntegrationTest is ChainoraTestBase {
     function testPublicPoolApplicationActivatesPoolAndRemovesListingWhenFull() external {
         _verifyUser(member1);
         _verifyUser(outsider);
+        reputationAdapter.setScore(outsider, 0);
 
         (ChainoraRoscaPool publicPool, uint256 publicPoolId) = _createPoolFor(member1, true, 2);
         _approvePoolFor(address(publicPool), outsider);
@@ -35,5 +36,6 @@ contract PublicRecruitmentIntegrationTest is ChainoraTestBase {
         assertEq(listing.activeMemberCount, 2);
         assertEq(publicPool.currentCycle(), 1);
         assertEq(publicPool.currentPeriod(), 1);
+        assertEq(publicPool.memberReputationSnapshot(outsider), 0);
     }
 }

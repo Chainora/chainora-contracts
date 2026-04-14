@@ -22,9 +22,13 @@ interface IChainoraRoscaPool {
 
     function targetMembers() external view returns (uint16);
 
+    function minReputation() external view returns (uint256);
+
     function activeMemberCount() external view returns (uint256);
 
     function publicRecruitment() external view returns (bool);
+
+    function memberReputationSnapshot(address account) external view returns (uint256);
 
     function joinRequest(uint256 requestId)
         external

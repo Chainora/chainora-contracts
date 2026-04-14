@@ -13,9 +13,11 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
 
     function testCreatePoolSuccessWithVerifiedCreator() external {
         _verifyUser(member1);
+        reputationAdapter.setScore(member1, 25);
 
         Types.PoolConfig memory cfg = Types.PoolConfig({
             contributionAmount: CONTRIBUTION,
+            minReputation: 24,
             targetMembers: 3,
             periodDuration: 7 days,
             contributionWindow: 2 days,
@@ -28,6 +30,7 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
         assertEq(secondPoolId, 2);
         assertEq(factory.poolById(2), secondPool);
         assertEq(uint256(ChainoraRoscaPool(secondPool).maxCycles()), uint256(cfg.targetMembers));
+        assertEq(ChainoraRoscaPool(secondPool).memberReputationSnapshot(member1), 25);
     }
 
     function testPrivatePoolDoesNotAppearInRecruitingCatalog() external {
@@ -59,6 +62,7 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
         assertEq(listing.activeMemberCount, 1);
         assertEq(listing.targetMembers, 3);
         assertEq(listing.contributionAmount, CONTRIBUTION);
+        assertEq(listing.minReputation, 0);
     }
 
     function testRecruitingPoolsPaginationReturnsPublicPoolsInCreationOrder() external {
@@ -119,6 +123,7 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
     function testCreatePoolRevertsForUnverifiedCreator() external {
         Types.PoolConfig memory cfg = Types.PoolConfig({
             contributionAmount: CONTRIBUTION,
+            minReputation: 0,
             targetMembers: 3,
             periodDuration: 7 days,
             contributionWindow: 2 days,
@@ -141,6 +146,7 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
 
         Types.PoolConfig memory cfg = Types.PoolConfig({
             contributionAmount: CONTRIBUTION,
+            minReputation: 0,
             targetMembers: 3,
             periodDuration: 7 days,
             contributionWindow: 4 days,
@@ -157,6 +163,7 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
 
         Types.PoolConfig memory cfg = Types.PoolConfig({
             contributionAmount: CONTRIBUTION,
+            minReputation: 0,
             targetMembers: 256,
             periodDuration: 7 days,
             contributionWindow: 2 days,
@@ -177,5 +184,14 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
         vm.prank(member1);
         vm.expectRevert(Errors.Unauthorized.selector);
         factory.createPool(_defaultPoolConfig(3));
+    }
+
+    function testCreatePoolRevertsWhenCreatorScoreIsNotStrictlyGreaterThanMinReputation() external {
+        _verifyUser(member1);
+        reputationAdapter.setScore(member1, 10);
+
+        vm.prank(member1);
+        vm.expectRevert(Errors.InsufficientReputation.selector);
+        factory.createPool(_defaultPoolConfig(3, 10));
     }
 }

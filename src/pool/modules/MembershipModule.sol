@@ -15,10 +15,13 @@ abstract contract MembershipModule is PoolStorage {
         if (_poolStatus != Types.PoolStatus.Forming) revert Errors.InvalidState();
         _requireMember(proposer);
         if (candidate == address(0) || _isMember[candidate]) revert Errors.InvalidConfig();
+        uint256 reputationSnapshot = _reputationScoreOf(candidate);
+        if (reputationSnapshot < _minReputation) revert Errors.InsufficientReputation();
 
         proposalId = ++_inviteProposalCount;
         InviteProposal storage proposal = _inviteProposals[proposalId];
         proposal.candidate = candidate;
+        proposal.reputationSnapshot = reputationSnapshot;
         proposal.open = true;
 
         emit ChainoraInviteProposed(proposalId, candidate, proposer);
@@ -57,7 +60,7 @@ abstract contract MembershipModule is PoolStorage {
 
         proposal.open = false;
         emit ChainoraInviteAccepted(proposalId, invitee);
-        _finalizeMemberAdmission(invitee);
+        _finalizeMemberAdmission(invitee, proposal.reputationSnapshot);
     }
 
     function _submitJoinRequest(address applicant) internal returns (uint256 requestId) {
@@ -71,9 +74,13 @@ abstract contract MembershipModule is PoolStorage {
             if (!verified) revert Errors.Unauthorized();
         }
 
+        uint256 reputationSnapshot = _reputationScoreOf(applicant);
+        if (reputationSnapshot < _minReputation) revert Errors.InsufficientReputation();
+
         requestId = ++_joinRequestCount;
         JoinRequest storage request = _joinRequests[requestId];
         request.applicant = applicant;
+        request.reputationSnapshot = reputationSnapshot;
         request.open = true;
         _openJoinRequestOf[applicant] = requestId;
 
@@ -126,10 +133,10 @@ abstract contract MembershipModule is PoolStorage {
         delete _openJoinRequestOf[applicant];
 
         emit ChainoraJoinRequestAccepted(requestId, applicant);
-        _finalizeMemberAdmission(applicant);
+        _finalizeMemberAdmission(applicant, request.reputationSnapshot);
     }
 
-    function _finalizeMemberAdmission(address account) private {
+    function _finalizeMemberAdmission(address account, uint256 reputationSnapshot) private {
         uint256 openJoinRequestId = _openJoinRequestOf[account];
         if (openJoinRequestId != 0) {
             _joinRequests[openJoinRequestId].open = false;
@@ -138,6 +145,7 @@ abstract contract MembershipModule is PoolStorage {
 
         _addMember(account);
         _memberDeposit[account] += _contributionAmount;
+        _memberReputationSnapshot[account] = reputationSnapshot;
 
         if (_activeMemberCount == _targetMembers) {
             _startFirstCycle();

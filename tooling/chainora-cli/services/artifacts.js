@@ -9,6 +9,7 @@ export const ARTIFACTS = {
   ChainoraProtocolTimelock: "out/ChainoraProtocolTimelock.sol/ChainoraProtocolTimelock.json",
   ChainoraProtocolRegistry: "out/ChainoraProtocolRegistry.sol/ChainoraProtocolRegistry.json",
   ChainoraDeviceAdapter: "out/ChainoraDeviceAdapter.sol/ChainoraDeviceAdapter.json",
+  ChainoraReputationAdapter: "out/ChainoraReputationAdapter.sol/ChainoraReputationAdapter.json",
   ChainoraRoscaFactory: "out/ChainoraRoscaFactory.sol/ChainoraRoscaFactory.json",
   ChainoraRoscaPool: "out/ChainoraRoscaPool.sol/ChainoraRoscaPool.json",
   ChainoraTestUSD: "out/ChainoraTestUSD.sol/ChainoraTestUSD.json"

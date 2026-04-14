@@ -66,7 +66,7 @@ const GROUPS = {
         label: "setReputationAdapter",
         functionName: "setReputationAdapter",
         readCurrent: "reputationAdapter",
-        syncEnvKey: null,
+        syncEnvKey: "CHAINORA_REPUTATION_ADAPTER",
         async promptArgs(_session, currentValue) {
           return [
             ensureOptionalAddress(
@@ -144,6 +144,32 @@ const GROUPS = {
       }
     ]
   },
+  reputationAdapter: {
+    label: "Reputation Adapter",
+    artifactName: "ChainoraReputationAdapter",
+    targetEnvKey: "CHAINORA_REPUTATION_ADAPTER",
+    actions: [
+      {
+        key: "setTrustVerifier",
+        label: "setTrustVerifier",
+        functionName: "setTrustVerifier",
+        syncEnvKey: null,
+        async promptArgs() {
+          const verifier = ensureAddress(
+            await promptAddress({
+              message: "Äá»‹a chá»‰ verifier"
+            }),
+            "Verifier"
+          );
+          const allowed = await promptBoolean({
+            message: "Cho phÃ©p verifier nÃ y?",
+            defaultValue: true
+          });
+          return [verifier, allowed];
+        }
+      }
+    ]
+  },
   deviceAdapter: {
     label: "Device Adapter",
     artifactName: "ChainoraDeviceAdapter",
@@ -190,7 +216,7 @@ const GROUPS = {
 
 /**
  * @param {import("../services/runtime.js").CliSession} session
- * @param {"registry" | "factory" | "deviceAdapter"} groupKey
+ * @param {"registry" | "factory" | "deviceAdapter" | "reputationAdapter"} groupKey
  */
 export async function runAdminWizard(session, groupKey) {
   const group = GROUPS[groupKey];

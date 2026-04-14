@@ -109,6 +109,71 @@ contract ChainoraRoscaPoolPublicRecruitmentTest is ChainoraTestBase {
         assertEq(listing.activeMemberCount, 2);
     }
 
+    function testInviteSnapshotIsFixedAtProposalTime() external {
+        reputationAdapter.setScore(member1, 11);
+        reputationAdapter.setScore(member2, 12);
+        (ChainoraRoscaPool restrictedPool,) = _createPoolFor(member1, true, 3, 10);
+        _approvePoolFor(address(restrictedPool), member2);
+
+        vm.prank(member1);
+        uint256 inviteId = restrictedPool.proposeInvite(member2);
+
+        reputationAdapter.setScore(member2, 0);
+
+        vm.prank(member1);
+        restrictedPool.voteInvite(inviteId, true);
+
+        vm.prank(member2);
+        restrictedPool.acceptInviteAndLockDeposit(inviteId);
+
+        assertEq(restrictedPool.memberReputationSnapshot(member2), 12);
+    }
+
+    function testInviteRevertsWhenCandidateReputationBelowMinimum() external {
+        reputationAdapter.setScore(member1, 11);
+        reputationAdapter.setScore(member2, 9);
+        (ChainoraRoscaPool restrictedPool,) = _createPoolFor(member1, true, 3, 10);
+
+        vm.prank(member1);
+        vm.expectRevert(Errors.InsufficientReputation.selector);
+        restrictedPool.proposeInvite(member2);
+    }
+
+    function testJoinRequestSnapshotIsFixedAtRequestTime() external {
+        _verifyUser(outsider);
+        reputationAdapter.setScore(member1, 11);
+        reputationAdapter.setScore(outsider, 12);
+
+        (ChainoraRoscaPool restrictedPool,) = _createPoolFor(member1, true, 3, 10);
+        _approvePoolFor(address(restrictedPool), outsider);
+
+        vm.prank(outsider);
+        uint256 requestId = restrictedPool.submitJoinRequest();
+
+        reputationAdapter.setScore(outsider, 0);
+
+        vm.prank(member1);
+        restrictedPool.voteJoinRequest(requestId, true);
+
+        vm.prank(outsider);
+        restrictedPool.acceptJoinRequestAndLockDeposit(requestId);
+
+        assertEq(restrictedPool.memberReputationSnapshot(outsider), 12);
+    }
+
+    function testJoinRequestRevertsWhenApplicantReputationBelowMinimum() external {
+        _verifyUser(outsider);
+        reputationAdapter.setScore(member1, 11);
+        reputationAdapter.setScore(outsider, 9);
+
+        (ChainoraRoscaPool restrictedPool,) = _createPoolFor(member1, true, 3, 10);
+        _approvePoolFor(address(restrictedPool), outsider);
+
+        vm.prank(outsider);
+        vm.expectRevert(Errors.InsufficientReputation.selector);
+        restrictedPool.submitJoinRequest();
+    }
+
     function testCancelJoinRequestClosesItAndAllowsResubmit() external {
         _verifyUser(outsider);
 

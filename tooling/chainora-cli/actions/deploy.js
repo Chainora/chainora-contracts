@@ -23,6 +23,7 @@ export async function runDeployWizard(session) {
   if (choice === "deployTimelock") return deployTimelock(session);
   if (choice === "deployRegistry") return deployRegistry(session);
   if (choice === "deployDeviceAdapter") return deployDeviceAdapter(session);
+  if (choice === "deployReputationAdapter") return deployReputationAdapter(session);
   if (choice === "deployPoolImplementation") return deployPoolImplementation(session);
   if (choice === "deployFactory") return deployFactory(session);
   if (choice === "deployChainoraTestUSD") return deployChainoraTestUSD(session);
@@ -41,7 +42,9 @@ export async function deployBootstrapCore(session) {
   const registryAddress = getDeployAddress(registryResult);
   const deviceAdapterResult = await deployDeviceAdapterWithConfig(session, { timelockAddress }, 2);
   const deviceAdapterAddress = getDeployAddress(deviceAdapterResult);
-  const poolImplementationResult = await deployPoolImplementationWithConfig(session, {}, 3);
+  const reputationAdapterResult = await deployReputationAdapterWithConfig(session, { timelockAddress }, 3);
+  const reputationAdapterAddress = getDeployAddress(reputationAdapterResult);
+  const poolImplementationResult = await deployPoolImplementationWithConfig(session, {}, 4);
   const poolImplementationAddress = getDeployAddress(poolImplementationResult);
   const factoryResult = await deployFactoryWithConfig(
     session,
@@ -50,7 +53,7 @@ export async function deployBootstrapCore(session) {
       registryAddress,
       poolImplementationAddress
     },
-    4
+    5
   );
   const factoryAddress = getDeployAddress(factoryResult);
 
@@ -64,6 +67,7 @@ export async function deployBootstrapCore(session) {
       CHAINORA_TIMELOCK: timelockAddress,
       CHAINORA_REGISTRY: registryAddress,
       CHAINORA_DEVICE_ADAPTER: deviceAdapterAddress,
+      CHAINORA_REPUTATION_ADAPTER: reputationAdapterAddress,
       CHAINORA_POOL_IMPLEMENTATION: poolImplementationAddress,
       CHAINORA_FACTORY: factoryAddress
     });
@@ -130,6 +134,27 @@ export async function deployDeviceAdapter(session) {
     await session.envStore.sync({
       CHAINORA_TIMELOCK: timelockAddress,
       CHAINORA_DEVICE_ADAPTER: getDeployAddress(result)
+    });
+  }
+}
+
+/**
+ * @param {import("../services/runtime.js").CliSession} session
+ */
+export async function deployReputationAdapter(session) {
+  const timelockAddress = ensureAddress(
+    await promptAddress({
+      message: "Äá»‹a chá»‰ timelock cho Reputation Adapter",
+      defaultValue: session.envStore.getNonEmpty("CHAINORA_TIMELOCK") ?? ZERO_ADDRESS
+    }),
+    "Timelock"
+  );
+  const result = await deployReputationAdapterWithConfig(session, { timelockAddress }, 0);
+
+  if (!session.dryRun) {
+    await session.envStore.sync({
+      CHAINORA_TIMELOCK: timelockAddress,
+      CHAINORA_REPUTATION_ADAPTER: getDeployAddress(result)
     });
   }
 }
@@ -356,6 +381,26 @@ export async function deployDeviceAdapterWithConfig(session, config, nonceOffset
     nonceOffset
   });
   printDeployResult("Device Adapter", result);
+  return result;
+}
+
+/**
+ * @param {import("../services/runtime.js").CliSession} session
+ * @param {{ timelockAddress: `0x${string}` }} config
+ * @param {number} nonceOffset
+ */
+export async function deployReputationAdapterWithConfig(session, config, nonceOffset) {
+  await assertContractCode(session, "ChainoraProtocolTimelock", config.timelockAddress);
+  printHeader("Deploy Reputation Adapter");
+  printField("Timelock", config.timelockAddress);
+
+  const result = await deployArtifact(session, {
+    artifactName: "ChainoraReputationAdapter",
+    args: [config.timelockAddress],
+    label: "ChainoraReputationAdapter",
+    nonceOffset
+  });
+  printDeployResult("Reputation Adapter", result);
   return result;
 }
 
