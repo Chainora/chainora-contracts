@@ -33,6 +33,16 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
         assertEq(ChainoraRoscaPool(secondPool).memberReputationSnapshot(member1), 25);
     }
 
+    function testCreatePoolSucceedsWhenCreatorScoreEqualsMinReputation() external {
+        _verifyUser(member1);
+        reputationAdapter.setScore(member1, 10);
+
+        vm.prank(member1);
+        (address secondPool,) = factory.createPool(_defaultPoolConfig(3, 10));
+
+        assertEq(ChainoraRoscaPool(secondPool).memberReputationSnapshot(member1), 10);
+    }
+
     function testPrivatePoolDoesNotAppearInRecruitingCatalog() external {
         _verifyUser(member1);
 
@@ -198,12 +208,24 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
         factory.createPool(_defaultPoolConfig(3));
     }
 
-    function testCreatePoolRevertsWhenCreatorScoreIsNotStrictlyGreaterThanMinReputation() external {
+    function testCreatePoolRevertsWhenCreatorScoreIsBelowMinReputation() external {
         _verifyUser(member1);
-        reputationAdapter.setScore(member1, 10);
+        reputationAdapter.setScore(member1, 9);
 
         vm.prank(member1);
         vm.expectRevert(Errors.InsufficientReputation.selector);
         factory.createPool(_defaultPoolConfig(3, 10));
+    }
+
+    function testCreatePoolSucceedsWithoutReputationAdapterWhenMinReputationIsZero() external {
+        _verifyUser(member1);
+
+        vm.prank(address(timelock));
+        registry.setReputationAdapter(address(0));
+
+        vm.prank(member1);
+        (address secondPool,) = factory.createPool(_defaultPoolConfig(3, 0));
+
+        assertEq(ChainoraRoscaPool(secondPool).memberReputationSnapshot(member1), 0);
     }
 }
