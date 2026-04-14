@@ -5,7 +5,6 @@ library Types {
     enum PoolStatus {
         Forming,
         Active,
-        Paused,
         Archived
     }
 
@@ -18,6 +17,7 @@ library Types {
 
     struct PoolConfig {
         uint256 contributionAmount;
+        uint256 minReputation;
         uint16 targetMembers;
         uint32 periodDuration;
         uint32 contributionWindow;
@@ -30,6 +30,7 @@ library Types {
         address registry;
         address stablecoin;
         bool publicRecruitment;
+        uint256 creatorReputationSnapshot;
         PoolConfig config;
     }
 
@@ -43,5 +44,6 @@ library Types {
         uint256 activeMemberCount;
         uint16 targetMembers;
         uint256 contributionAmount;
+        uint256 minReputation;
     }
 }

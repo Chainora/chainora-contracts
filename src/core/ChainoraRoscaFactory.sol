@@ -7,6 +7,7 @@ import {Events} from "src/libraries/Events.sol";
 import {Clones} from "src/libraries/Clones.sol";
 import {IChainoraProtocolRegistry} from "src/core/IChainoraProtocolRegistry.sol";
 import {IChainoraDeviceAdapter} from "src/adapters/interfaces/IChainoraDeviceAdapter.sol";
+import {IChainoraReputationAdapter} from "src/adapters/interfaces/IChainoraReputationAdapter.sol";
 import {IChainoraRoscaPool} from "src/pool/IChainoraRoscaPool.sol";
 
 contract ChainoraRoscaFactory is Events {
@@ -17,6 +18,7 @@ contract ChainoraRoscaFactory is Events {
         bool publicRecruitment;
         uint16 targetMembers;
         uint256 contributionAmount;
+        uint256 minReputation;
     }
 
     address public timelock;
@@ -128,6 +130,9 @@ contract ChainoraRoscaFactory is Events {
             if (!verified) revert Errors.Unauthorized();
         }
 
+        uint256 creatorReputationSnapshot = _reputationScore(protocolRegistry.reputationAdapter(), msg.sender);
+        if (creatorReputationSnapshot <= config.minReputation) revert Errors.InsufficientReputation();
+
         pool = poolImplementation.clone();
         poolId = ++poolCount;
         poolById[poolId] = pool;
@@ -136,7 +141,8 @@ contract ChainoraRoscaFactory is Events {
             creator: msg.sender,
             publicRecruitment: publicRecruitment,
             targetMembers: config.targetMembers,
-            contributionAmount: config.contributionAmount
+            contributionAmount: config.contributionAmount,
+            minReputation: config.minReputation
         });
 
         Types.PoolInitConfig memory initConfig = Types.PoolInitConfig({
@@ -145,6 +151,7 @@ contract ChainoraRoscaFactory is Events {
             registry: registry,
             stablecoin: stablecoin,
             publicRecruitment: publicRecruitment,
+            creatorReputationSnapshot: creatorReputationSnapshot,
             config: config
         });
 
@@ -173,7 +180,8 @@ contract ChainoraRoscaFactory is Events {
             poolStatus: roscaPool.poolStatus(),
             activeMemberCount: roscaPool.activeMemberCount(),
             targetMembers: metadata.targetMembers,
-            contributionAmount: metadata.contributionAmount
+            contributionAmount: metadata.contributionAmount,
+            minReputation: metadata.minReputation
         });
     }
 
@@ -219,5 +227,10 @@ contract ChainoraRoscaFactory is Events {
         if (config.contributionWindow + config.auctionWindow >= config.periodDuration) {
             revert Errors.InvalidConfig();
         }
+    }
+
+    function _reputationScore(address reputationAdapter, address account) private view returns (uint256) {
+        if (reputationAdapter == address(0)) return 0;
+        return IChainoraReputationAdapter(reputationAdapter).scoreOf(account);
     }
 }

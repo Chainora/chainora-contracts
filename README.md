@@ -7,6 +7,8 @@ This repository contains the Chainora ROSCA v1 smart contracts plus a cross-plat
 - Control-plane contracts use an upgrade-ready pattern (`ChainoraProtocolRegistry`, `ChainoraRoscaFactory`, timelock-governed upgrades).
 - Pool instances are deployed via minimal proxies (clones) from `ChainoraRoscaFactory`.
 - Runtime is member-driven: only active pool members can call period transition functions.
+- Pool formation does not escrow upfront contributions; members start paying when period 1 opens.
+- A missed contribution archives the pool immediately, and contributors from the interrupted period can claim refunds.
 - External integrations (device verification, reputation snapshots, staking) are adapter-based.
 - Deploy and admin tooling now lives in `tooling/chainora-cli/`; Solidity deploy/admin scripts are no longer part of the repo workflow.
 
@@ -55,16 +57,18 @@ The CLI contains three branches:
 
 - `Deploy`
   - `Bootstrap Core`
-  - `Deploy Timelock`
-  - `Deploy Registry`
-  - `Deploy Device Adapter`
-  - `Deploy Pool Implementation`
-  - `Deploy Factory`
-  - `Deploy ChainoraTestUSD`
+- `Deploy Timelock`
+- `Deploy Registry`
+- `Deploy Device Adapter`
+- `Deploy Reputation Adapter`
+- `Deploy Pool Implementation`
+- `Deploy Factory`
+- `Deploy ChainoraTestUSD`
 - `Admin`
   - `Registry > setStablecoin | setDeviceAdapter | setReputationAdapter | setStakingAdapter`
   - `Factory > setRegistry | setPoolImplementation`
   - `Device Adapter > setTrustVerifier | revokeUser`
+  - `Reputation Adapter > setTrustVerifier`
 - `Timelock Utilities`
   - `Inspect Operation`
   - `Cancel Operation`
@@ -86,6 +90,7 @@ Keep only long-lived values in `.env`:
 - `CHAINORA_TIMELOCK`
 - `CHAINORA_REGISTRY`
 - `CHAINORA_DEVICE_ADAPTER`
+- `CHAINORA_REPUTATION_ADAPTER`
 - `CHAINORA_POOL_IMPLEMENTATION`
 - `CHAINORA_FACTORY`
 - `CHAINORA_TEST_STABLECOIN`
@@ -104,8 +109,15 @@ Successful deploys auto-sync the relevant persistent addresses into `.env`. Some
 4. Use `Admin` to schedule and execute timelock-managed updates such as:
    - setting the stablecoin
    - switching `deviceAdapter`
+   - switching `reputationAdapter`
    - switching `poolImplementation`
 5. Use `Timelock Utilities` to inspect or cancel pending operations when needed.
+
+### Reputation scoring flow
+
+- Contracts only store and verify reputation scores; they do not calculate score deltas onchain.
+- Backend services can discover completed pools from `ChainoraPoolArchived()` and backfill that pool's event history to compute final score changes.
+- After computing final scores offchain, a trusted verifier signs a batch update and a relayer submits it to `ChainoraReputationAdapter`.
 
 ### Current Tooling Gap
 

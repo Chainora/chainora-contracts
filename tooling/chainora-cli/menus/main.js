@@ -22,6 +22,7 @@ export function chooseDeployMenu() {
       { name: "Deploy Timelock", value: "deployTimelock" },
       { name: "Deploy Registry", value: "deployRegistry" },
       { name: "Deploy Device Adapter", value: "deployDeviceAdapter" },
+      { name: "Deploy Reputation Adapter", value: "deployReputationAdapter" },
       { name: "Deploy Pool Implementation", value: "deployPoolImplementation" },
       { name: "Deploy Factory", value: "deployFactory" },
       { name: "Deploy ChainoraTestUSD", value: "deployChainoraTestUSD" },
@@ -37,6 +38,7 @@ export function chooseAdminGroup() {
       { name: "Registry", value: "registry" },
       { name: "Factory", value: "factory" },
       { name: "Device Adapter", value: "deviceAdapter" },
+      { name: "Reputation Adapter", value: "reputationAdapter" },
       { name: "Quay lại", value: "back" }
     ]
   });

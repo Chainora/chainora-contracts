@@ -4,7 +4,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { zeroHash } from "viem";
 
-import { deployChainoraTestUSDWithConfig, deployDeviceAdapterWithConfig, deployFactoryWithConfig, deployPoolImplementationWithConfig, deployRegistryWithConfig, deployTimelockWithConfig } from "../../actions/deploy.js";
+import {
+  deployChainoraTestUSDWithConfig,
+  deployDeviceAdapterWithConfig,
+  deployFactoryWithConfig,
+  deployPoolImplementationWithConfig,
+  deployRegistryWithConfig,
+  deployReputationAdapterWithConfig,
+  deployTimelockWithConfig
+} from "../../actions/deploy.js";
 import { loadArtifact } from "../../services/artifacts.js";
 import { readContract, writeContract } from "../../services/chain.js";
 import { createSession } from "../../services/runtime.js";
@@ -32,6 +40,7 @@ test("deploy flow wires contracts and timelock admin ops work end-to-end", async
 
   const registry = await deployRegistryWithConfig(session, { timelockAddress }, 0);
   const deviceAdapter = await deployDeviceAdapterWithConfig(session, { timelockAddress }, 0);
+  const reputationAdapter = await deployReputationAdapterWithConfig(session, { timelockAddress }, 0);
   const poolImplementation = await deployPoolImplementationWithConfig(session, {}, 0);
   const factory = await deployFactoryWithConfig(
     session,
@@ -44,6 +53,7 @@ test("deploy flow wires contracts and timelock admin ops work end-to-end", async
   );
 
   const registryAbi = (await loadArtifact(session.projectRoot, "ChainoraProtocolRegistry")).abi;
+  const reputationAdapterAbi = (await loadArtifact(session.projectRoot, "ChainoraReputationAdapter")).abi;
   const factoryAbi = (await loadArtifact(session.projectRoot, "ChainoraRoscaFactory")).abi;
   const timelockAbi = await getTimelockAbi(session);
 
@@ -97,6 +107,63 @@ test("deploy flow wires contracts and timelock admin ops work end-to-end", async
     String(await readContract(session, registry.contractAddress, registryAbi, "stablecoin")).toLowerCase(),
     stablecoin.contractAddress.toLowerCase()
   );
+
+  const reputationAdapterData = encodeAdminCall(registryAbi, "setReputationAdapter", [reputationAdapter.contractAddress]);
+  const reputationAdapterSchedule = await selectScheduleCandidate(session, {
+    timelockAddress,
+    target: registry.contractAddress,
+    data: reputationAdapterData,
+    predecessor: zeroHash,
+    saltLabel: "setReputationAdapter"
+  });
+
+  await writeContract(session, {
+    address: timelockAddress,
+    abi: timelockAbi,
+    functionName: "schedule",
+    args: [registry.contractAddress, 0n, reputationAdapterData, zeroHash, reputationAdapterSchedule.salt, 0n],
+    label: "schedule:setReputationAdapter"
+  });
+
+  await writeContract(session, {
+    address: timelockAddress,
+    abi: timelockAbi,
+    functionName: "execute",
+    args: [registry.contractAddress, 0n, reputationAdapterData, zeroHash, reputationAdapterSchedule.salt],
+    label: "execute:setReputationAdapter"
+  });
+
+  assert.equal(
+    String(await readContract(session, registry.contractAddress, registryAbi, "reputationAdapter")).toLowerCase(),
+    reputationAdapter.contractAddress.toLowerCase()
+  );
+
+  const setTrustVerifierData = encodeAdminCall(reputationAdapterAbi, "setTrustVerifier", [ANVIL_ADDRESS, true]);
+  const setTrustVerifierSchedule = await selectScheduleCandidate(session, {
+    timelockAddress,
+    target: reputationAdapter.contractAddress,
+    data: setTrustVerifierData,
+    predecessor: zeroHash,
+    saltLabel: "setReputationTrustVerifier"
+  });
+
+  await writeContract(session, {
+    address: timelockAddress,
+    abi: timelockAbi,
+    functionName: "schedule",
+    args: [reputationAdapter.contractAddress, 0n, setTrustVerifierData, zeroHash, setTrustVerifierSchedule.salt, 0n],
+    label: "schedule:setReputationTrustVerifier"
+  });
+
+  await writeContract(session, {
+    address: timelockAddress,
+    abi: timelockAbi,
+    functionName: "execute",
+    args: [reputationAdapter.contractAddress, 0n, setTrustVerifierData, zeroHash, setTrustVerifierSchedule.salt],
+    label: "execute:setReputationTrustVerifier"
+  });
+
+  assert.equal(await readContract(session, reputationAdapter.contractAddress, reputationAdapterAbi, "trustVerifier", [ANVIL_ADDRESS]), true);
 
   const newPoolImplementation = await deployPoolImplementationWithConfig(session, {}, 0);
   const poolImplData = encodeAdminCall(factoryAbi, "setPoolImplementation", [newPoolImplementation.contractAddress]);
@@ -170,6 +237,7 @@ test("deploy flow wires contracts and timelock admin ops work end-to-end", async
   assert.equal(executedAfterCancel, false);
 
   assert.equal(deviceAdapter.contractAddress !== undefined, true);
+  assert.equal(reputationAdapter.contractAddress !== undefined, true);
 });
 
 test("deploy factory rejects dependencies without code", async () => {

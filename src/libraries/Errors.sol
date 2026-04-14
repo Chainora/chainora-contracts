@@ -32,7 +32,9 @@ library Errors {
     error AttestationUserMismatch();
     error InvalidAttestationNonce();
     error InvalidAttestationSignature();
+    error DuplicateAttestationUser();
     error UntrustedVerifier();
+    error InsufficientReputation();
     error UpgradeImplementationInvalid();
     error CloneCreateFailed();
 }
