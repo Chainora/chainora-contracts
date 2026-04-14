@@ -11,8 +11,10 @@ library Errors {
     error ProposalClosed();
     error ProposalNotPassed();
     error NotInvitee();
+    error NotApplicant();
     error NotMember();
     error NotActiveMember();
+    error RequestAlreadyOpen();
     error DeadlineNotReached();
     error DeadlinePassed();
     error AlreadyContributed();
@@ -25,6 +27,12 @@ library Errors {
     error AlreadyClaimed();
     error PoolNotArchived();
     error AlreadyLeft();
+    error AlreadyVerified();
+    error AttestationExpired();
+    error AttestationUserMismatch();
+    error InvalidAttestationNonce();
+    error InvalidAttestationSignature();
+    error UntrustedVerifier();
     error UpgradeImplementationInvalid();
     error CloneCreateFailed();
 }

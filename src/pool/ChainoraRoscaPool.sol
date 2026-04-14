@@ -47,6 +47,7 @@ contract ChainoraRoscaPool is
         _registry = initConfig.registry;
         _stablecoin = initConfig.stablecoin;
         _creator = initConfig.creator;
+        _publicRecruitment = initConfig.publicRecruitment;
 
         _contributionAmount = cfg.contributionAmount;
         _targetMembers = cfg.targetMembers;
@@ -70,6 +71,22 @@ contract ChainoraRoscaPool is
 
     function acceptInviteAndLockDeposit(uint256 proposalId) external {
         _acceptInviteAndLockDeposit(msg.sender, proposalId);
+    }
+
+    function submitJoinRequest() external returns (uint256 requestId) {
+        requestId = _submitJoinRequest(msg.sender);
+    }
+
+    function voteJoinRequest(uint256 requestId, bool support) external {
+        _voteJoinRequest(msg.sender, requestId, support);
+    }
+
+    function acceptJoinRequestAndLockDeposit(uint256 requestId) external {
+        _acceptJoinRequestAndLockDeposit(msg.sender, requestId);
+    }
+
+    function cancelJoinRequest(uint256 requestId) external {
+        _cancelJoinRequest(msg.sender, requestId);
     }
 
     function contribute() external {
@@ -152,6 +169,10 @@ contract ChainoraRoscaPool is
         return _contributionAmount;
     }
 
+    function publicRecruitment() external view returns (bool) {
+        return _publicRecruitment;
+    }
+
     function targetMembers() external view returns (uint16) {
         return _targetMembers;
     }
@@ -202,6 +223,18 @@ contract ChainoraRoscaPool is
         yesVotes = proposal.yesVotes;
         noVotes = proposal.noVotes;
         open = proposal.open;
+    }
+
+    function joinRequest(uint256 requestId)
+        external
+        view
+        returns (address applicant, uint256 yesVotes, uint256 noVotes, bool open)
+    {
+        JoinRequest storage request = _joinRequests[requestId];
+        applicant = request.applicant;
+        yesVotes = request.yesVotes;
+        noVotes = request.noVotes;
+        open = request.open;
     }
 
     function periodInfo(uint256 cycleId, uint256 periodId)

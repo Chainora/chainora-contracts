@@ -10,8 +10,8 @@
 
 ## 2) Stack Snapshot
 
-- Languages: Solidity (`^0.8.24`) and Foundry script/test Solidity.
-- Frameworks/Tooling: Foundry (`forge`, `anvil`, `cast`), `forge-std`.
+- Languages: Solidity (`^0.8.24`) and JavaScript (Node.js 24+ ESM for the wizard CLI).
+- Frameworks/Tooling: Foundry (`forge`, `anvil`, `cast`), `forge-std`, OpenZeppelin Contracts for standardized primitives/utilities, and a Node.js wizard CLI under `tooling/chainora-cli/`.
 - Dependency management: git submodule (`lib/forge-std`).
 - CI: GitHub Actions workflow at `.github/workflows/test.yml`.
 
@@ -21,6 +21,15 @@
 - Keep edits minimal and localized; avoid broad rewrites without explicit request.
 - Do not change unrelated files.
 - Do not run destructive git commands (`reset --hard`, force checkout, force push) unless explicitly requested.
+- Deploy/admin tooling path is the JavaScript wizard CLI only; do not add new Solidity deploy/admin scripts.
+- Any new admin action, deployable contract, deploy flow, or persistent env key must update all of:
+- `tooling/chainora-cli/` wizard menu
+- CLI action/service validation
+- `.env.example`
+- `README.md`
+- CLI tests under `tooling/chainora-cli/test`
+- Prefer battle-tested OpenZeppelin implementations for standardized concerns (for example ERC20 helpers, access control primitives, clone helpers, guards, and utility libraries) instead of introducing bespoke versions.
+- If protocol-specific behavior requires custom logic around a standardized primitive, wrap or extend the OpenZeppelin building block narrowly and document why direct reuse is insufficient.
 - Preserve naming convention:
 - Public/core protocol contracts use `Chainora*` prefix.
 - Internal modules/libraries keep short names (`MembershipModule`, `Types`, `Errors`, etc.).
@@ -39,8 +48,8 @@
 
 - Root folders:
 - `src/`: production contracts.
-- `script/`: deployment/configuration/create-pool scripts.
 - `test/`: unit, integration, invariant-style tests and mocks.
+- `tooling/chainora-cli/`: cross-platform wizard CLI for deploy/admin/timelock operations.
 - `lib/forge-std/`: Foundry test/script utility dependency.
 
 - Contract boundaries:
@@ -63,6 +72,7 @@ Run from repository root.
 
 - Install dependencies:
 - `git submodule update --init --recursive`
+- `npm install`
 - Build:
 - `forge build --sizes`
 - Format check:
@@ -77,37 +87,52 @@ Run from repository root.
 - `forge coverage --report summary`
 - Local chain for manual deploy testing:
 - `anvil`
+- Wizard CLI:
+- `npm run chainora`
+- `npm run chainora -- --rpc-url <RPC_URL>`
+- `npm run chainora -- --dry-run`
+- CLI lint:
+- `npm run lint`
+- CLI typecheck:
+- `npm run typecheck`
+- CLI tests:
+- `npm test`
 
-## 7) Deployment Script Inputs
+## 7) Persistent CLI Env Inputs
 
-Scripts are in `script/deploy/*.s.sol` and rely on environment variables.
+The JavaScript wizard CLI reads persistent values from `.env`.
 
 - Common:
+- `RPC_URL`
+- `ETH_RPC_URL`
 - `PRIVATE_KEY`
-- Deploy core:
+- Timelock bootstrap defaults:
 - `CHAINORA_MULTISIG`
 - `CHAINORA_TIMELOCK_DELAY`
-- Configure registry:
-- `CHAINORA_REGISTRY`
+- `CHAINORA_PROPOSERS`
+- `CHAINORA_EXECUTORS`
+- `CHAINORA_CANCELLERS`
+- Persistent deployed addresses:
 - `CHAINORA_TIMELOCK`
-- `CHAINORA_STABLECOIN`
+- `CHAINORA_REGISTRY`
 - `CHAINORA_DEVICE_ADAPTER`
-- `CHAINORA_REPUTATION_ADAPTER`
-- `CHAINORA_STAKING_ADAPTER`
-- Create pool:
+- `CHAINORA_POOL_IMPLEMENTATION`
 - `CHAINORA_FACTORY`
-- `CHAINORA_CONTRIBUTION_AMOUNT`
-- `CHAINORA_TARGET_MEMBERS`
-- `CHAINORA_PERIOD_DURATION`
-- `CHAINORA_CONTRIBUTION_WINDOW`
-- `CHAINORA_AUCTION_WINDOW`
-- `CHAINORA_MAX_CYCLES` is no longer required; max cycles is derived from `CHAINORA_TARGET_MEMBERS`
+- Local-only stablecoin defaults:
+- `CHAINORA_TEST_STABLECOIN`
+- `CHAINORA_TEST_STABLECOIN_OWNER`
+- `CHAINORA_TEST_STABLECOIN_INITIAL_SUPPLY`
+- Note:
+- The wizard auto-syncs successful deploys into the persistent address keys above.
+- The CLI can prompt for `PRIVATE_KEY` at runtime if it is omitted from `.env`.
 
 ## 8) Code Style And Patterns
 
 - Prefer custom errors from `src/libraries/Errors.sol` over string reverts.
 - Emit protocol events via shared `Events` definitions when state changes matter.
 - Keep state-machine checks explicit (`InvalidState`, deadline checks, role/member checks).
+- Prefer OpenZeppelin's audited implementations when the required behavior is already standardized; do not reimplement common helpers such as safe ERC20 transfers, clone factories, access control mixins, reentrancy guards, pausability, signature verification, or math/address utilities without a clear protocol-specific reason.
+- When replacing or extending an in-repo helper that overlaps with OpenZeppelin, keep the custom layer thin and focused on Chainora-specific rules rather than duplicating the underlying standardized logic.
 - Use existing storage/module pattern in pool contracts; add new pool logic inside modules unless change is explicitly cross-cutting.
 - Keep adapter integration behind interfaces from `src/adapters/interfaces`.
 - Prefer small, testable functions and avoid introducing hidden side effects in core state transitions.
@@ -128,10 +153,11 @@ Scripts are in `script/deploy/*.s.sol` and rely on environment variables.
 ## 10) Data, Secrets, And Safety
 
 - Never commit real private keys or secret RPC credentials.
-- Use environment variables for script execution; do not hardcode secrets in scripts/tests.
+- Use environment variables for CLI execution; do not hardcode secrets in contracts, tests, or CLI sources.
 - Treat timelock operation tuples (`target`, `value`, `data`, `predecessor`, `salt`) as immutable identifiers once scheduled.
 - Do not bypass timelock-only setters in registry/factory when changing protocol config semantics.
 - Escalate before making changes that alter fund movement, access control, or pause/default recovery behavior.
+- `CreatePool` tooling has been intentionally removed; if it returns later, implement it in the wizard CLI instead of restoring Solidity scripts.
 
 ## 11) Delivery Format
 

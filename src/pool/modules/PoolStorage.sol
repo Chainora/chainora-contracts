@@ -5,11 +5,20 @@ import {Types} from "src/libraries/Types.sol";
 import {Errors} from "src/libraries/Errors.sol";
 import {Events} from "src/libraries/Events.sol";
 import {PeriodMath} from "src/libraries/PeriodMath.sol";
+import {IChainoraRoscaFactory} from "src/core/IChainoraRoscaFactory.sol";
 import {IChainoraProtocolRegistry} from "src/core/IChainoraProtocolRegistry.sol";
 
 abstract contract PoolStorage is Events {
     struct InviteProposal {
         address candidate;
+        uint256 yesVotes;
+        uint256 noVotes;
+        bool open;
+        mapping(address => bool) voted;
+    }
+
+    struct JoinRequest {
+        address applicant;
         uint256 yesVotes;
         uint256 noVotes;
         bool open;
@@ -38,6 +47,7 @@ abstract contract PoolStorage is Events {
     address internal _registry;
     address internal _stablecoin;
     address internal _creator;
+    bool internal _publicRecruitment;
 
     uint256 internal _contributionAmount;
     uint16 internal _targetMembers;
@@ -60,6 +70,9 @@ abstract contract PoolStorage is Events {
 
     uint256 internal _inviteProposalCount;
     mapping(uint256 => InviteProposal) internal _inviteProposals;
+    uint256 internal _joinRequestCount;
+    mapping(uint256 => JoinRequest) internal _joinRequests;
+    mapping(address => uint256) internal _openJoinRequestOf;
 
     mapping(uint256 => mapping(uint256 => PeriodState)) internal _periods;
     mapping(uint256 => mapping(address => bool)) internal _hasReceivedInCycle;
@@ -178,5 +191,15 @@ abstract contract PoolStorage is Events {
 
     function _stakingAdapter() internal view returns (address) {
         return IChainoraProtocolRegistry(_registry).stakingAdapter();
+    }
+
+    function _deviceAdapter() internal view returns (address) {
+        return IChainoraProtocolRegistry(_registry).deviceAdapter();
+    }
+
+    function _syncRecruitingPool() internal {
+        if (_publicRecruitment) {
+            IChainoraRoscaFactory(_factory).syncRecruitingPool();
+        }
     }
 }
