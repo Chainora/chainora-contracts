@@ -39,7 +39,7 @@ Fill in the actual deployed addresses for each environment.
 | Network | Timelock | Registry | Factory | Pool Implementation | Stablecoin | Device Adapter | Reputation Adapter | Staking Adapter |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Local | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` |
-| Testnet | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` |
+| Testnet (Chainora Rollup tCNR) | `0xCbd8415bA47fb8b26695eD61B68e3A94E46eB7E2` | `0xE51b472cA5528759EE72F3bA95e9A94fb0636AA6` | `0x83B2c694799c825b2DB78e75C6ad9BBf7B171e41` | `0x62f2fDaAc333c44D260658e89fe8A39A48C10755` | `TBD` | `TBD` | `TBD` | `TBD` |
 | Mainnet | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` |
 
 ---
