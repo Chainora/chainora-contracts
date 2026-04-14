@@ -46,6 +46,18 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
         assertEq(listing.activeMemberCount, 1);
     }
 
+    function testCreatePoolDoesNotPullCreatorContributionUpfront() external {
+        _verifyUser(member1);
+
+        uint256 creatorBalanceBefore = token.balanceOf(member1);
+
+        vm.prank(member1);
+        (address secondPool,) = factory.createPool(_defaultPoolConfig(3));
+
+        assertEq(token.balanceOf(member1), creatorBalanceBefore);
+        assertEq(token.balanceOf(secondPool), 0);
+    }
+
     function testPublicPoolAppearsInRecruitingCatalog() external {
         _verifyUser(member1);
 
@@ -100,7 +112,7 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
         vm.prank(member1);
         secondPool.voteInvite(firstInvite, true);
         vm.prank(member2);
-        secondPool.acceptInviteAndLockDeposit(firstInvite);
+        secondPool.acceptInvite(firstInvite);
 
         assertEq(factory.recruitingPoolCount(), 1);
 
@@ -111,7 +123,7 @@ contract ChainoraRoscaFactoryTest is ChainoraTestBase {
         vm.prank(member2);
         secondPool.voteInvite(secondInvite, true);
         vm.prank(outsider);
-        secondPool.acceptInviteAndLockDeposit(secondInvite);
+        secondPool.acceptInvite(secondInvite);
 
         Types.PoolDiscoveryView memory listing = factory.recruitingPool(secondPoolId);
         assertEq(factory.recruitingPoolCount(), 0);

@@ -38,10 +38,7 @@ contract RoscaInvariantsTest is ChainoraTestBase {
         vm.warp(uint256(contributionDeadline) + 1);
 
         vm.prank(creator);
-        pool.markDefaultAndPause(member2);
-
-        vm.prank(creator);
-        pool.archive();
+        pool.markDefaultAndArchive(member2);
 
         assertEq(uint256(pool.poolStatus()), uint256(Types.PoolStatus.Archived));
 

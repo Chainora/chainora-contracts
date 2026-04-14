@@ -69,7 +69,6 @@ abstract contract PoolStorage is Events {
     address[] internal _members;
     mapping(address => bool) internal _isMember;
     mapping(address => bool) internal _isActiveMember;
-    mapping(address => uint256) internal _memberDeposit;
     mapping(address => uint256) internal _memberReputationSnapshot;
     uint256 internal _activeMemberCount;
 
@@ -84,12 +83,7 @@ abstract contract PoolStorage is Events {
     mapping(uint256 => uint256) internal _cycleMemberCount;
 
     mapping(address => uint256) internal _claimableYield;
-
-    uint256 internal _pauseVoteRound;
-    mapping(uint256 => mapping(address => bool)) internal _pauseVoted;
-    bool internal _pauseVoteOpen;
-    uint256 internal _pauseYesVotes;
-    address internal _defaultedMember;
+    mapping(address => uint256) internal _claimableArchiveRefund;
 
     uint256 internal _extendVoteRound;
     mapping(uint256 => mapping(address => bool)) internal _extendVoted;

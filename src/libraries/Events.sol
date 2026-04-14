@@ -47,10 +47,10 @@ abstract contract Events {
         uint256 indexed cycleId, uint256 indexed periodId, address indexed member, uint256 amount
     );
     event ChainoraPeriodFinalized(uint256 indexed cycleId, uint256 indexed periodId);
-
-    event ChainoraPoolPaused(address indexed defaultedMember, uint256 indexed cycleId, uint256 indexed periodId);
-    event ChainoraContinueVoted(address indexed voter, bool support, uint256 yesVotes, uint256 requiredVotes);
-    event ChainoraPoolResumed(uint256 indexed cycleId, uint256 indexed nextPeriodId);
+    event ChainoraPoolArchivedOnDefault(
+        address indexed defaultedMember, uint256 indexed cycleId, uint256 indexed periodId
+    );
+    event ChainoraArchiveRefundClaimed(address indexed member, uint256 amount);
 
     event ChainoraExtendVoted(address indexed voter, bool support, uint256 yesVotes, uint256 requiredVotes);
     event ChainoraPoolArchived();

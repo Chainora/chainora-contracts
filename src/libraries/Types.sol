@@ -5,7 +5,6 @@ library Types {
     enum PoolStatus {
         Forming,
         Active,
-        Paused,
         Archived
     }
 

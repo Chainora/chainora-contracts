@@ -27,15 +27,18 @@ contract PublicRecruitmentIntegrationTest is ChainoraTestBase {
         publicPool.voteJoinRequest(requestId, true);
 
         vm.prank(outsider);
-        publicPool.acceptJoinRequestAndLockDeposit(requestId);
+        publicPool.acceptJoinRequest(requestId);
 
         Types.PoolDiscoveryView memory listing = factory.recruitingPool(publicPoolId);
+        (,,,,,,, uint256 totalContributed,,,) = publicPool.periodInfo(1, 1);
         assertEq(factory.recruitingPoolCount(), 0);
         assertFalse(listing.listed);
         assertEq(uint256(listing.poolStatus), uint256(Types.PoolStatus.Active));
         assertEq(listing.activeMemberCount, 2);
         assertEq(publicPool.currentCycle(), 1);
         assertEq(publicPool.currentPeriod(), 1);
+        assertEq(totalContributed, 0);
+        assertEq(token.balanceOf(address(publicPool)), 0);
         assertEq(publicPool.memberReputationSnapshot(outsider), 0);
     }
 }

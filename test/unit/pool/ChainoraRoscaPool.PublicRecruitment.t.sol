@@ -70,7 +70,7 @@ contract ChainoraRoscaPoolPublicRecruitmentTest is ChainoraTestBase {
         vm.prank(member1);
         publicPool.voteInvite(inviteId, true);
         vm.prank(member2);
-        publicPool.acceptInviteAndLockDeposit(inviteId);
+        publicPool.acceptInvite(inviteId);
 
         vm.prank(outsider);
         uint256 requestId = publicPool.submitJoinRequest();
@@ -80,11 +80,13 @@ contract ChainoraRoscaPoolPublicRecruitmentTest is ChainoraTestBase {
 
         vm.prank(outsider);
         vm.expectRevert(Errors.ProposalNotPassed.selector);
-        publicPool.acceptJoinRequestAndLockDeposit(requestId);
+        publicPool.acceptJoinRequest(requestId);
     }
 
     function testApplicantCanAcceptAfterQuorumAndStaysListedIfStillForming() external {
         _verifyUser(outsider);
+
+        uint256 balanceBefore = token.balanceOf(outsider);
 
         vm.prank(outsider);
         uint256 requestId = publicPool.submitJoinRequest();
@@ -93,7 +95,7 @@ contract ChainoraRoscaPoolPublicRecruitmentTest is ChainoraTestBase {
         publicPool.voteJoinRequest(requestId, true);
 
         vm.prank(outsider);
-        publicPool.acceptJoinRequestAndLockDeposit(requestId);
+        publicPool.acceptJoinRequest(requestId);
 
         (address applicant, uint256 yesVotes,, bool open) = publicPool.joinRequest(requestId);
         Types.PoolDiscoveryView memory listing = factory.recruitingPool(2);
@@ -103,7 +105,7 @@ contract ChainoraRoscaPoolPublicRecruitmentTest is ChainoraTestBase {
         assertFalse(open);
         assertTrue(publicPool.isMember(outsider));
         assertEq(publicPool.activeMemberCount(), 2);
-        assertEq(publicPool.memberDeposit(outsider), CONTRIBUTION);
+        assertEq(token.balanceOf(outsider), balanceBefore);
         assertEq(uint256(publicPool.poolStatus()), uint256(Types.PoolStatus.Forming));
         assertTrue(listing.listed);
         assertEq(listing.activeMemberCount, 2);
@@ -123,9 +125,11 @@ contract ChainoraRoscaPoolPublicRecruitmentTest is ChainoraTestBase {
         vm.prank(member1);
         restrictedPool.voteInvite(inviteId, true);
 
+        uint256 balanceBefore = token.balanceOf(member2);
         vm.prank(member2);
-        restrictedPool.acceptInviteAndLockDeposit(inviteId);
+        restrictedPool.acceptInvite(inviteId);
 
+        assertEq(token.balanceOf(member2), balanceBefore);
         assertEq(restrictedPool.memberReputationSnapshot(member2), 12);
     }
 
@@ -156,7 +160,7 @@ contract ChainoraRoscaPoolPublicRecruitmentTest is ChainoraTestBase {
         restrictedPool.voteJoinRequest(requestId, true);
 
         vm.prank(outsider);
-        restrictedPool.acceptJoinRequestAndLockDeposit(requestId);
+        restrictedPool.acceptJoinRequest(requestId);
 
         assertEq(restrictedPool.memberReputationSnapshot(outsider), 12);
     }

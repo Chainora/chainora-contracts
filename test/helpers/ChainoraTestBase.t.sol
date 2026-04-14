@@ -158,7 +158,7 @@ abstract contract ChainoraTestBase is Test {
         pool.voteInvite(p1, true);
 
         vm.prank(member1);
-        pool.acceptInviteAndLockDeposit(p1);
+        pool.acceptInvite(p1);
 
         vm.prank(creator);
         uint256 p2 = pool.proposeInvite(member2);
@@ -169,7 +169,7 @@ abstract contract ChainoraTestBase is Test {
         pool.voteInvite(p2, true);
 
         vm.prank(member2);
-        pool.acceptInviteAndLockDeposit(p2);
+        pool.acceptInvite(p2);
     }
 
     function _contributeAllActive() internal {

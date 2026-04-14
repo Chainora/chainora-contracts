@@ -2,15 +2,12 @@
 pragma solidity ^0.8.24;
 
 import {VoteMath} from "src/libraries/VoteMath.sol";
-import {SafeTransferLibExt} from "src/libraries/SafeTransferLibExt.sol";
 import {Errors} from "src/libraries/Errors.sol";
 import {Types} from "src/libraries/Types.sol";
 import {IChainoraDeviceAdapter} from "src/adapters/interfaces/IChainoraDeviceAdapter.sol";
 import {PoolStorage} from "src/pool/modules/PoolStorage.sol";
 
 abstract contract MembershipModule is PoolStorage {
-    using SafeTransferLibExt for address;
-
     function _proposeInvite(address proposer, address candidate) internal returns (uint256 proposalId) {
         if (_poolStatus != Types.PoolStatus.Forming) revert Errors.InvalidState();
         _requireMember(proposer);
@@ -45,7 +42,7 @@ abstract contract MembershipModule is PoolStorage {
         emit ChainoraInviteVoted(proposalId, voter, support);
     }
 
-    function _acceptInviteAndLockDeposit(address invitee, uint256 proposalId) internal {
+    function _acceptInvite(address invitee, uint256 proposalId) internal {
         if (_poolStatus != Types.PoolStatus.Forming) revert Errors.InvalidState();
 
         InviteProposal storage proposal = _inviteProposals[proposalId];
@@ -55,8 +52,6 @@ abstract contract MembershipModule is PoolStorage {
         if (!VoteMath.isTwoThirdsOrMore(proposal.yesVotes, _activeMemberCount)) {
             revert Errors.ProposalNotPassed();
         }
-
-        _stablecoin.safeTransferFrom(invitee, address(this), _contributionAmount);
 
         proposal.open = false;
         emit ChainoraInviteAccepted(proposalId, invitee);
@@ -116,7 +111,7 @@ abstract contract MembershipModule is PoolStorage {
         emit ChainoraJoinRequestCanceled(requestId, applicant);
     }
 
-    function _acceptJoinRequestAndLockDeposit(address applicant, uint256 requestId) internal {
+    function _acceptJoinRequest(address applicant, uint256 requestId) internal {
         if (_poolStatus != Types.PoolStatus.Forming || !_publicRecruitment) revert Errors.InvalidState();
 
         JoinRequest storage request = _joinRequests[requestId];
@@ -126,8 +121,6 @@ abstract contract MembershipModule is PoolStorage {
         if (!VoteMath.isTwoThirdsOrMore(request.yesVotes, _activeMemberCount)) {
             revert Errors.ProposalNotPassed();
         }
-
-        _stablecoin.safeTransferFrom(applicant, address(this), _contributionAmount);
 
         request.open = false;
         delete _openJoinRequestOf[applicant];
@@ -144,7 +137,6 @@ abstract contract MembershipModule is PoolStorage {
         }
 
         _addMember(account);
-        _memberDeposit[account] += _contributionAmount;
         _memberReputationSnapshot[account] = reputationSnapshot;
 
         if (_activeMemberCount == _targetMembers) {

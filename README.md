@@ -7,6 +7,8 @@ This repository contains the Chainora ROSCA v1 smart contracts plus a cross-plat
 - Control-plane contracts use an upgrade-ready pattern (`ChainoraProtocolRegistry`, `ChainoraRoscaFactory`, timelock-governed upgrades).
 - Pool instances are deployed via minimal proxies (clones) from `ChainoraRoscaFactory`.
 - Runtime is member-driven: only active pool members can call period transition functions.
+- Pool formation does not escrow upfront contributions; members start paying when period 1 opens.
+- A missed contribution archives the pool immediately, and contributors from the interrupted period can claim refunds.
 - External integrations (device verification, reputation snapshots, staking) are adapter-based.
 - Deploy and admin tooling now lives in `tooling/chainora-cli/`; Solidity deploy/admin scripts are no longer part of the repo workflow.
 
