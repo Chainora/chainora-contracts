@@ -39,7 +39,7 @@ contract ChainoraRoscaPool is
         if (cfg.contributionWindow + cfg.auctionWindow >= cfg.periodDuration) {
             revert Errors.InvalidConfig();
         }
-        if (initConfig.creatorReputationSnapshot <= cfg.minReputation) revert Errors.InsufficientReputation();
+        if (initConfig.creatorReputationSnapshot < cfg.minReputation) revert Errors.InsufficientReputation();
 
         _initialized = true;
         _factory = msg.sender;

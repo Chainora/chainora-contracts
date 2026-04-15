@@ -12,6 +12,7 @@ abstract contract MembershipModule is PoolStorage {
         if (_poolStatus != Types.PoolStatus.Forming) revert Errors.InvalidState();
         _requireMember(proposer);
         if (candidate == address(0) || _isMember[candidate]) revert Errors.InvalidConfig();
+        _requireDeviceVerified(candidate);
         uint256 reputationSnapshot = _reputationScoreOf(candidate);
         if (reputationSnapshot < _minReputation) revert Errors.InsufficientReputation();
 
@@ -63,11 +64,7 @@ abstract contract MembershipModule is PoolStorage {
         if (_isMember[applicant]) revert Errors.InvalidConfig();
         if (_openJoinRequestOf[applicant] != 0) revert Errors.RequestAlreadyOpen();
 
-        address deviceAdapter = _deviceAdapter();
-        if (deviceAdapter != address(0)) {
-            bool verified = IChainoraDeviceAdapter(deviceAdapter).isDeviceVerified(applicant);
-            if (!verified) revert Errors.Unauthorized();
-        }
+        _requireDeviceVerified(applicant);
 
         uint256 reputationSnapshot = _reputationScoreOf(applicant);
         if (reputationSnapshot < _minReputation) revert Errors.InsufficientReputation();
@@ -130,6 +127,8 @@ abstract contract MembershipModule is PoolStorage {
     }
 
     function _finalizeMemberAdmission(address account, uint256 reputationSnapshot) private {
+        _requireDeviceVerified(account);
+
         uint256 openJoinRequestId = _openJoinRequestOf[account];
         if (openJoinRequestId != 0) {
             _joinRequests[openJoinRequestId].open = false;
@@ -144,5 +143,13 @@ abstract contract MembershipModule is PoolStorage {
         }
 
         _syncRecruitingPool();
+    }
+
+    function _requireDeviceVerified(address account) private view {
+        address deviceAdapter = _deviceAdapter();
+        if (deviceAdapter == address(0)) return;
+
+        bool verified = IChainoraDeviceAdapter(deviceAdapter).isDeviceVerified(account);
+        if (!verified) revert Errors.Unauthorized();
     }
 }

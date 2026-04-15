@@ -1,17 +1,37 @@
 // @ts-nocheck
 
-import { choose, promptAddress, promptBoolean, promptPredecessor, promptText } from "../prompts/common.js";
+import {
+  choose,
+  promptAddress,
+  promptBoolean,
+  promptPredecessor,
+  promptText,
+} from "../prompts/common.js";
 import { loadArtifact } from "../services/artifacts.js";
-import { assertContractCode, ensureClients, writeContract } from "../services/chain.js";
-import { printField, printHeader, printInfo, printSuccess, printWarning } from "../services/format.js";
-import { ZERO_HASH, ensureAddress, ensureOptionalAddress } from "../services/shared.js";
+import {
+  assertContractCode,
+  ensureClients,
+  writeContract,
+} from "../services/chain.js";
+import {
+  printField,
+  printHeader,
+  printInfo,
+  printSuccess,
+  printWarning,
+} from "../services/format.js";
+import {
+  ZERO_HASH,
+  ensureAddress,
+  ensureOptionalAddress,
+} from "../services/shared.js";
 import {
   encodeAdminCall,
   getRoleIds,
   getTimelockAbi,
   selectExecuteCandidate,
   selectScheduleCandidate,
-  signerHasRole
+  signerHasRole,
 } from "../services/timelock.js";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -35,12 +55,12 @@ const GROUPS = {
                 message: "Địa chỉ stablecoin mới",
                 defaultValue:
                   session.envStore.getNonEmpty("CHAINORA_TEST_STABLECOIN") ??
-                  currentValue
+                  currentValue,
               }),
-              "Stablecoin"
-            )
+              "Stablecoin",
+            ),
           ];
-        }
+        },
       },
       {
         key: "setDeviceAdapter",
@@ -54,12 +74,12 @@ const GROUPS = {
               await promptAddress({
                 message: "Địa chỉ device adapter mới (cho phép zero address)",
                 defaultValue: currentValue,
-                allowZero: true
+                allowZero: true,
               }),
-              "Device Adapter"
-            ) ?? ZERO
+              "Device Adapter",
+            ) ?? ZERO,
           ];
-        }
+        },
       },
       {
         key: "setReputationAdapter",
@@ -71,14 +91,15 @@ const GROUPS = {
           return [
             ensureOptionalAddress(
               await promptAddress({
-                message: "Địa chỉ reputation adapter mới (cho phép zero address)",
+                message:
+                  "Địa chỉ reputation adapter mới (cho phép zero address)",
                 defaultValue: currentValue,
-                allowZero: true
+                allowZero: true,
               }),
-              "Reputation Adapter"
-            ) ?? ZERO
+              "Reputation Adapter",
+            ) ?? ZERO,
           ];
-        }
+        },
       },
       {
         key: "setStakingAdapter",
@@ -92,14 +113,14 @@ const GROUPS = {
               await promptAddress({
                 message: "Địa chỉ staking adapter mới (cho phép zero address)",
                 defaultValue: currentValue,
-                allowZero: true
+                allowZero: true,
               }),
-              "Staking Adapter"
-            ) ?? ZERO
+              "Staking Adapter",
+            ) ?? ZERO,
           ];
-        }
-      }
-    ]
+        },
+      },
+    ],
   },
   factory: {
     label: "Factory",
@@ -117,12 +138,12 @@ const GROUPS = {
             ensureAddress(
               await promptAddress({
                 message: "Địa chỉ Registry mới",
-                defaultValue: currentValue
+                defaultValue: currentValue,
               }),
-              "Registry"
-            )
+              "Registry",
+            ),
           ];
-        }
+        },
       },
       {
         key: "setPoolImplementation",
@@ -135,14 +156,14 @@ const GROUPS = {
             ensureAddress(
               await promptAddress({
                 message: "Địa chỉ Pool Implementation mới",
-                defaultValue: currentValue
+                defaultValue: currentValue,
               }),
-              "Pool Implementation"
-            )
+              "Pool Implementation",
+            ),
           ];
-        }
-      }
-    ]
+        },
+      },
+    ],
   },
   reputationAdapter: {
     label: "Reputation Adapter",
@@ -157,18 +178,18 @@ const GROUPS = {
         async promptArgs() {
           const verifier = ensureAddress(
             await promptAddress({
-              message: "Äá»‹a chá»‰ verifier"
+              message: "Địa chỉ verifier",
             }),
-            "Verifier"
+            "Verifier",
           );
           const allowed = await promptBoolean({
-            message: "Cho phÃ©p verifier nÃ y?",
-            defaultValue: true
+            message: "Cho phép verifier này?",
+            defaultValue: true,
           });
           return [verifier, allowed];
-        }
-      }
-    ]
+        },
+      },
+    ],
   },
   deviceAdapter: {
     label: "Device Adapter",
@@ -183,16 +204,16 @@ const GROUPS = {
         async promptArgs() {
           const verifier = ensureAddress(
             await promptAddress({
-              message: "Địa chỉ verifier"
+              message: "Địa chỉ verifier",
             }),
-            "Verifier"
+            "Verifier",
           );
           const allowed = await promptBoolean({
             message: "Cho phép verifier này?",
-            defaultValue: true
+            defaultValue: true,
           });
           return [verifier, allowed];
-        }
+        },
       },
       {
         key: "revokeUser",
@@ -203,15 +224,15 @@ const GROUPS = {
           return [
             ensureAddress(
               await promptAddress({
-                message: "Địa chỉ user cần revoke"
+                message: "Địa chỉ user cần revoke",
               }),
-              "User"
-            )
+              "User",
+            ),
           ];
-        }
-      }
-    ]
-  }
+        },
+      },
+    ],
+  },
 };
 
 /**
@@ -227,9 +248,12 @@ export async function runAdminWizard(session, groupKey) {
   const actionKey = await choose({
     message: `Chọn action cho ${group.label}`,
     choices: [
-      ...group.actions.map((action) => ({ name: action.label, value: action.key })),
-      { name: "Quay lại", value: "back" }
-    ]
+      ...group.actions.map((action) => ({
+        name: action.label,
+        value: action.key,
+      })),
+      { name: "Quay lại", value: "back" },
+    ],
   });
   if (actionKey === "back") return;
 
@@ -246,26 +270,32 @@ export async function runAdminWizard(session, groupKey) {
   const abi = (
     await loadArtifact(
       session.projectRoot,
-      /** @type {keyof import("../services/artifacts.js").ARTIFACTS} */ (group.artifactName)
+      /** @type {keyof import("../services/artifacts.js").ARTIFACTS} */ (
+        group.artifactName
+      ),
     )
   ).abi;
   const targetAddress = ensureAddress(
     await promptAddress({
       message: `Địa chỉ ${group.label}`,
-      defaultValue: session.envStore.getNonEmpty(group.targetEnvKey)
+      defaultValue: session.envStore.getNonEmpty(group.targetEnvKey),
     }),
-    group.label
+    group.label,
   );
   await assertContractCode(
     session,
-    /** @type {keyof import("../services/artifacts.js").ARTIFACTS} */ (group.artifactName),
-    targetAddress
+    /** @type {keyof import("../services/artifacts.js").ARTIFACTS} */ (
+      group.artifactName
+    ),
+    targetAddress,
   );
 
   let currentValue = "";
   if ("readCurrent" in action && action.readCurrent) {
     const { readContract } = await import("../services/chain.js");
-    currentValue = String(await readContract(session, targetAddress, abi, action.readCurrent));
+    currentValue = String(
+      await readContract(session, targetAddress, abi, action.readCurrent),
+    );
   }
 
   const args = await action.promptArgs(session, currentValue);
@@ -275,23 +305,32 @@ export async function runAdminWizard(session, groupKey) {
     message: "Chọn mode timelock",
     choices: [
       { name: "schedule", value: "schedule" },
-      { name: "execute", value: "execute" }
-    ]
+      { name: "execute", value: "execute" },
+    ],
   });
   const advanced = await promptBoolean({
     message: "Chỉnh predecessor / salt label nâng cao?",
-    defaultValue: false
+    defaultValue: false,
   });
-  const predecessor = /** @type {`0x${string}`} */ (advanced ? await promptPredecessor() : ZERO_HASH);
+  const predecessor = /** @type {`0x${string}`} */ (
+    advanced ? await promptPredecessor() : ZERO_HASH
+  );
   const saltLabel = advanced
     ? await promptText({
         message: "Salt label",
-        defaultValue: action.key
+        defaultValue: action.key,
       })
     : action.key;
 
-  const timelockAddress = ensureAddress(session.envStore.getNonEmpty("CHAINORA_TIMELOCK"), "CHAINORA_TIMELOCK");
-  await assertContractCode(session, "ChainoraProtocolTimelock", timelockAddress);
+  const timelockAddress = ensureAddress(
+    session.envStore.getNonEmpty("CHAINORA_TIMELOCK"),
+    "CHAINORA_TIMELOCK",
+  );
+  await assertContractCode(
+    session,
+    "ChainoraProtocolTimelock",
+    timelockAddress,
+  );
 
   const data = encodeAdminCall(abi, action.functionName, args);
 
@@ -309,7 +348,7 @@ export async function runAdminWizard(session, groupKey) {
   const hasRole = await signerHasRole(session, {
     timelockAddress,
     role,
-    accountAddress: session.account.address
+    accountAddress: session.account.address,
   });
   if (!hasRole) {
     throw new Error(`Signer ${session.account.address} không có ${roleName}.`);
@@ -321,7 +360,7 @@ export async function runAdminWizard(session, groupKey) {
       target: targetAddress,
       data,
       predecessor,
-      saltLabel
+      saltLabel,
     });
 
     printField("Operation ID", candidate.operationId);
@@ -329,19 +368,23 @@ export async function runAdminWizard(session, groupKey) {
     printField("Candidate index", candidate.index);
 
     if (candidate.kind === "existingPending") {
-      printWarning("Đã có operation pending trùng payload này. CLI sẽ không schedule thêm.");
+      printWarning(
+        "Đã có operation pending trùng payload này. CLI sẽ không schedule thêm.",
+      );
       return;
     }
 
     const timelockAbi = await getTimelockAbi(session);
     const { readContract } = await import("../services/chain.js");
-    const minDelay = /** @type {bigint} */ (await readContract(session, timelockAddress, timelockAbi, "minDelay"));
+    const minDelay = /** @type {bigint} */ (
+      await readContract(session, timelockAddress, timelockAbi, "minDelay")
+    );
     const result = await writeContract(session, {
       address: timelockAddress,
       abi: timelockAbi,
       functionName: "schedule",
       args: [targetAddress, 0n, data, predecessor, candidate.salt, minDelay],
-      label: `${group.label}:${action.functionName}:schedule`
+      label: `${group.label}:${action.functionName}:schedule`,
     });
 
     if (result.dryRun) {
@@ -360,7 +403,7 @@ export async function runAdminWizard(session, groupKey) {
     target: targetAddress,
     data,
     predecessor,
-    saltLabel
+    saltLabel,
   });
 
   printField("Operation ID", candidate.operationId);
@@ -373,7 +416,7 @@ export async function runAdminWizard(session, groupKey) {
     abi: timelockAbi,
     functionName: "execute",
     args: [targetAddress, 0n, data, predecessor, candidate.salt],
-    label: `${group.label}:${action.functionName}:execute`
+    label: `${group.label}:${action.functionName}:execute`,
   });
 
   if (result.dryRun) {
@@ -388,11 +431,11 @@ export async function runAdminWizard(session, groupKey) {
   if (action.syncEnvKey) {
     const shouldSync = await promptBoolean({
       message: `Cập nhật ${action.syncEnvKey} vào .env?`,
-      defaultValue: true
+      defaultValue: true,
     });
     if (shouldSync) {
       await session.envStore.sync({
-        [action.syncEnvKey]: String(args[0])
+        [action.syncEnvKey]: String(args[0]),
       });
       printSuccess(`Đã sync ${action.syncEnvKey} vào .env.`);
     }
@@ -412,16 +455,23 @@ async function validateArguments(session, actionKey, args) {
     "setReputationAdapter",
     "setStakingAdapter",
     "setRegistry",
-    "setPoolImplementation"
+    "setPoolImplementation",
   ]);
 
   if (!shouldHaveCode.has(actionKey)) {
     return;
   }
 
-  const addressLike = args.filter((arg) => typeof arg === "string" && /^0x[a-fA-F0-9]{40}$/.test(arg) && arg !== ZERO);
+  const addressLike = args.filter(
+    (arg) =>
+      typeof arg === "string" &&
+      /^0x[a-fA-F0-9]{40}$/.test(arg) &&
+      arg !== ZERO,
+  );
   for (const arg of addressLike) {
-    const bytecode = await publicClient.getBytecode({ address: /** @type {`0x${string}`} */ (arg) });
+    const bytecode = await publicClient.getBytecode({
+      address: /** @type {`0x${string}`} */ (arg),
+    });
     if (!bytecode) {
       throw new Error(`Địa chỉ ${arg} chưa có code trên chain.`);
     }

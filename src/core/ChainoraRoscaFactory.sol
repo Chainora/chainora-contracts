@@ -131,7 +131,7 @@ contract ChainoraRoscaFactory is Events {
         }
 
         uint256 creatorReputationSnapshot = _reputationScore(protocolRegistry.reputationAdapter(), msg.sender);
-        if (creatorReputationSnapshot <= config.minReputation) revert Errors.InsufficientReputation();
+        if (creatorReputationSnapshot < config.minReputation) revert Errors.InsufficientReputation();
 
         pool = poolImplementation.clone();
         poolId = ++poolCount;

@@ -11,61 +11,61 @@ contract ChainoraDeviceAdapterTest is ChainoraTestBase {
     }
 
     function testSubmitVerificationMarksUserVerifiedAndAdvancesNonce() external {
-        uint256 nonceBefore = deviceAdapter.nextNonce(member1);
+        uint256 nonceBefore = deviceAdapter.nextNonce(outsider);
 
-        _verifyUser(member1);
+        _verifyUser(outsider);
 
-        assertTrue(deviceAdapter.isDeviceVerified(member1));
-        assertEq(deviceAdapter.nextNonce(member1), nonceBefore + 1);
+        assertTrue(deviceAdapter.isDeviceVerified(outsider));
+        assertEq(deviceAdapter.nextNonce(outsider), nonceBefore + 1);
     }
 
     function testSubmitVerificationRejectsUntrustedVerifier() external {
         (IChainoraDeviceAdapter.DeviceVerificationAttestation memory attestation, bytes memory signature) =
-            _signedDeviceVerification(member1, 0xB0B);
+            _signedDeviceVerification(outsider, 0xB0B);
 
-        vm.prank(member1);
+        vm.prank(outsider);
         vm.expectRevert(Errors.UntrustedVerifier.selector);
         deviceAdapter.submitVerification(attestation, signature);
     }
 
     function testSubmitVerificationRejectsInvalidSignature() external {
         IChainoraDeviceAdapter.DeviceVerificationAttestation memory attestation =
-            _deviceVerificationAttestation(member1);
+            _deviceVerificationAttestation(outsider);
 
         bytes memory signature = hex"1234";
 
-        vm.prank(member1);
+        vm.prank(outsider);
         vm.expectRevert(Errors.InvalidAttestationSignature.selector);
         deviceAdapter.submitVerification(attestation, signature);
     }
 
     function testSubmitVerificationRejectsExpiredAttestation() external {
         IChainoraDeviceAdapter.DeviceVerificationAttestation memory attestation =
-            _deviceVerificationAttestation(member1, deviceAdapter.nextNonce(member1), uint64(block.timestamp));
+            _deviceVerificationAttestation(outsider, deviceAdapter.nextNonce(outsider), uint64(block.timestamp));
         bytes memory signature = _signDeviceVerification(attestation, DEVICE_VERIFIER_KEY);
 
         vm.warp(block.timestamp + 1);
-        vm.prank(member1);
+        vm.prank(outsider);
         vm.expectRevert(Errors.AttestationExpired.selector);
         deviceAdapter.submitVerification(attestation, signature);
     }
 
     function testSubmitVerificationRejectsUserMismatch() external {
         (IChainoraDeviceAdapter.DeviceVerificationAttestation memory attestation, bytes memory signature) =
-            _signedDeviceVerification(member1, DEVICE_VERIFIER_KEY);
+            _signedDeviceVerification(outsider, DEVICE_VERIFIER_KEY);
 
-        vm.prank(outsider);
+        vm.prank(member1);
         vm.expectRevert(Errors.AttestationUserMismatch.selector);
         deviceAdapter.submitVerification(attestation, signature);
     }
 
     function testSubmitVerificationRejectsIncorrectNonce() external {
         IChainoraDeviceAdapter.DeviceVerificationAttestation memory attestation = _deviceVerificationAttestation(
-            member1, deviceAdapter.nextNonce(member1) + 1, uint64(block.timestamp + 1 days)
+            outsider, deviceAdapter.nextNonce(outsider) + 1, uint64(block.timestamp + 1 days)
         );
         bytes memory signature = _signDeviceVerification(attestation, DEVICE_VERIFIER_KEY);
 
-        vm.prank(member1);
+        vm.prank(outsider);
         vm.expectRevert(Errors.InvalidAttestationNonce.selector);
         deviceAdapter.submitVerification(attestation, signature);
     }
@@ -128,9 +128,9 @@ contract ChainoraDeviceAdapterTest is ChainoraTestBase {
         deviceAdapter.setTrustVerifier(deviceVerifier, false);
 
         (IChainoraDeviceAdapter.DeviceVerificationAttestation memory attestation, bytes memory signature) =
-            _signedDeviceVerification(member1, DEVICE_VERIFIER_KEY);
+            _signedDeviceVerification(outsider, DEVICE_VERIFIER_KEY);
 
-        vm.prank(member1);
+        vm.prank(outsider);
         vm.expectRevert(Errors.UntrustedVerifier.selector);
         deviceAdapter.submitVerification(attestation, signature);
     }

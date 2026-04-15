@@ -151,6 +151,13 @@ abstract contract ChainoraTestBase is Test {
     }
 
     function _formThreeMemberPool() internal {
+        if (!deviceAdapter.isDeviceVerified(member1)) {
+            _verifyUser(member1);
+        }
+        if (!deviceAdapter.isDeviceVerified(member2)) {
+            _verifyUser(member2);
+        }
+
         vm.prank(creator);
         uint256 p1 = pool.proposeInvite(member1);
 
@@ -182,6 +189,10 @@ abstract contract ChainoraTestBase is Test {
     }
 
     function _verifyUser(address user) internal {
+        if (deviceAdapter.isDeviceVerified(user)) {
+            return;
+        }
+
         (IChainoraDeviceAdapter.DeviceVerificationAttestation memory attestation, bytes memory signature) =
             _signedDeviceVerification(user, DEVICE_VERIFIER_KEY);
 
