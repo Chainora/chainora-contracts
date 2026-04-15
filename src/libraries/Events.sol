@@ -43,6 +43,9 @@ abstract contract Events {
     event ChainoraPayoutClaimed(
         uint256 indexed cycleId, uint256 indexed periodId, address indexed recipient, uint256 amount
     );
+    event ChainoraYieldAccrued(
+        uint256 indexed cycleId, uint256 indexed periodId, address indexed member, uint256 amount
+    );
     event ChainoraYieldClaimed(
         uint256 indexed cycleId, uint256 indexed periodId, address indexed member, uint256 amount
     );

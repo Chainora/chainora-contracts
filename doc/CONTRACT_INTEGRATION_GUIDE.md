@@ -575,6 +575,7 @@ function closeAuctionAndSelectRecipient() external
 - otherwise the contract selects from eligible active members who have not yet received in the cycle
 - if a reputation adapter exists, the contract may snapshot and compare reputation scores
 - if no reputation adapter exists, the first eligible member found is selected
+- if the winning bid leaves a non-zero per-member share, the contract accrues that yield immediately for the other active members and emits `ChainoraYieldAccrued`
 
 **Common revert cases**:
 - `Errors.NotActiveMember()`
@@ -587,6 +588,7 @@ function closeAuctionAndSelectRecipient() external
 - `Errors.InvalidConfig()`
 
 **Event**:
+- `ChainoraYieldAccrued(uint256 cycleId, uint256 periodId, address member, uint256 amount)` for each non-recipient member who receives discount yield
 - `ChainoraRecipientSelected(uint256 cycleId, uint256 periodId, address recipient, uint256 payoutAmount, uint256 discount)`
 
 **Example**:
@@ -646,7 +648,7 @@ await recipientWallet.writeContract({
 
 ### 5.5. `claimYield()`
 
-**Description**: Lets a member claim accumulated yield from discount sharing.
+**Description**: Lets a member claim accumulated yield from discount sharing after the pool has been archived.
 
 **Call**:
 
@@ -660,13 +662,16 @@ function claimYield() external
 
 **Requirements**:
 - caller must be a member
+- pool status must be `Archived`
 - `claimableYield(caller)` must be greater than `0`
 
 **Common revert cases**:
 - `Errors.NotMember()`
+- `Errors.PoolNotArchived()`
 - `Errors.PayoutUnavailable()`
 
 **Event**:
+- `ChainoraYieldAccrued(uint256 cycleId, uint256 periodId, address member, uint256 amount)` if discount yield was assigned when the source period closed
 - `ChainoraYieldClaimed(uint256 cycleId, uint256 periodId, address member, uint256 amount)`
 
 **Example**:
@@ -1068,9 +1073,10 @@ const [currentCycle, currentPeriod, activeMemberCount, cycleCompleted] = await P
 | `ChainoraPoolActivated` | Pool became active or started a new cycle |
 | `ChainoraContributionPaid` | A member contributed for the current period |
 | `ChainoraBidSubmitted` | Auction bid state changed |
+| `ChainoraYieldAccrued` | Discount yield was assigned to a member for a specific source period |
 | `ChainoraRecipientSelected` | Recipient and payout amount were determined |
 | `ChainoraPayoutClaimed` | Recipient claimed payout |
-| `ChainoraYieldClaimed` | Member claimed yield |
+| `ChainoraYieldClaimed` | Member claimed archived aggregate yield |
 | `ChainoraPeriodFinalized` | Period closed and next period or cycle logic advanced |
 | `ChainoraPoolArchivedOnDefault` | Pool was archived immediately because a member defaulted |
 | `ChainoraArchiveRefundClaimed` | Member reclaimed a contribution from an interrupted period |
@@ -1139,7 +1145,7 @@ const [currentCycle, currentPeriod, activeMemberCount, cycleCompleted] = await P
 3. Eligible member optionally calls submitDiscountBid(discount)
 4. After auctionDeadline, active member calls closeAuctionAndSelectRecipient()
 5. Selected recipient may call claimPayout() before period end
-6. Members with yield call claimYield()
+6. Members with yield wait until the pool is archived, then call claimYield()
 7. After period end, active member calls finalizePeriod(); if payout is still unclaimed, finalize auto-transfers it to the selected recipient
 ```
 

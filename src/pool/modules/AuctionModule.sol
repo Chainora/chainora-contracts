@@ -77,11 +77,14 @@ abstract contract AuctionModule is PoolStorage {
 
         if (discount > 0 && _activeMemberCount > 1) {
             uint256 share = discount / (_activeMemberCount - 1);
-            uint256 len = _members.length;
-            for (uint256 i = 0; i < len; i++) {
-                address member = _members[i];
-                if (_isActiveMember[member] && member != recipient) {
-                    _claimableYield[member] += share;
+            if (share > 0) {
+                uint256 len = _members.length;
+                for (uint256 i = 0; i < len; i++) {
+                    address member = _members[i];
+                    if (_isActiveMember[member] && member != recipient) {
+                        _claimableYield[member] += share;
+                        emit ChainoraYieldAccrued(_currentCycle, _currentPeriod, member, share);
+                    }
                 }
             }
         }

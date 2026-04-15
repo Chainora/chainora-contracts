@@ -21,6 +21,8 @@ abstract contract SettlementModule is PoolStorage {
 
     function _claimYield(address member) internal {
         _requireMember(member);
+        if (_poolStatus != Types.PoolStatus.Archived) revert Errors.PoolNotArchived();
+
         uint256 amount = _claimableYield[member];
         if (amount == 0) revert Errors.PayoutUnavailable();
 
