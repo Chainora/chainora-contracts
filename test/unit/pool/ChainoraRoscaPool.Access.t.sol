@@ -19,7 +19,7 @@ contract ChainoraRoscaPoolAccessTest is ChainoraTestBase {
         pool.closeAuctionAndSelectRecipient();
 
         vm.prank(outsider);
-        vm.expectRevert(Errors.NotMember.selector);
+        vm.expectRevert(Errors.NotActiveMember.selector);
         pool.archive();
     }
 

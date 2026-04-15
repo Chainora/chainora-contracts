@@ -37,7 +37,7 @@ abstract contract ExtensionModule is PoolStorage {
     }
 
     function _archive(address caller) internal {
-        _requireMember(caller);
+        _requireActiveMember(caller);
 
         if (_poolStatus == Types.PoolStatus.Active && _cycleCompleted && _extendVoteOpen) {
             _extendVoteOpen = false;

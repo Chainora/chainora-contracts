@@ -16,6 +16,8 @@ interface IChainoraRoscaPool {
 
     function cancelJoinRequest(uint256 requestId) external;
 
+    function leaveDuringForming() external;
+
     function markDefaultAndArchive(address defaultedMember) external;
 
     function claimArchiveRefund() external;

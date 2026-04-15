@@ -13,18 +13,22 @@ abstract contract PoolStorage is Events {
     struct InviteProposal {
         address candidate;
         uint256 reputationSnapshot;
+        uint256 quorumMemberCount;
         uint256 yesVotes;
         uint256 noVotes;
         bool open;
+        mapping(address => bool) eligibleVoter;
         mapping(address => bool) voted;
     }
 
     struct JoinRequest {
         address applicant;
         uint256 reputationSnapshot;
+        uint256 quorumMemberCount;
         uint256 yesVotes;
         uint256 noVotes;
         bool open;
+        mapping(address => bool) eligibleVoter;
         mapping(address => bool) voted;
     }
 
@@ -74,8 +78,12 @@ abstract contract PoolStorage is Events {
 
     uint256 internal _inviteProposalCount;
     mapping(uint256 => InviteProposal) internal _inviteProposals;
+    uint256[] internal _openInviteProposalIds;
+    mapping(uint256 => uint256) internal _openInviteProposalIndexPlusOne;
     uint256 internal _joinRequestCount;
     mapping(uint256 => JoinRequest) internal _joinRequests;
+    uint256[] internal _openJoinRequestIds;
+    mapping(uint256 => uint256) internal _openJoinRequestIndexPlusOne;
     mapping(address => uint256) internal _openJoinRequestOf;
 
     mapping(uint256 => mapping(uint256 => PeriodState)) internal _periods;
@@ -100,12 +108,20 @@ abstract contract PoolStorage is Events {
         if (!_isActiveMember[account]) revert Errors.NotActiveMember();
     }
 
-    function _addMember(address account) internal {
-        if (_isMember[account]) revert Errors.InvalidConfig();
-        _isMember[account] = true;
+    function _activateMember(address account) internal {
+        if (_isActiveMember[account]) revert Errors.InvalidConfig();
+        if (!_isMember[account]) {
+            _isMember[account] = true;
+            _members.push(account);
+        }
         _isActiveMember[account] = true;
-        _members.push(account);
         _activeMemberCount += 1;
+    }
+
+    function _deactivateMember(address account) internal {
+        if (!_isActiveMember[account]) revert Errors.NotActiveMember();
+        _isActiveMember[account] = false;
+        _activeMemberCount -= 1;
     }
 
     function _currentPeriodStorage() internal view returns (PeriodState storage period) {
@@ -206,5 +222,116 @@ abstract contract PoolStorage is Events {
         if (_publicRecruitment) {
             IChainoraRoscaFactory(_factory).syncRecruitingPool();
         }
+    }
+
+    function _snapshotInviteEligibleVoters(uint256 proposalId) internal {
+        InviteProposal storage proposal = _inviteProposals[proposalId];
+        proposal.quorumMemberCount = _activeMemberCount;
+
+        uint256 len = _members.length;
+        for (uint256 i = 0; i < len; i++) {
+            address member = _members[i];
+            if (_isActiveMember[member]) {
+                proposal.eligibleVoter[member] = true;
+            }
+        }
+    }
+
+    function _snapshotJoinRequestEligibleVoters(uint256 requestId) internal {
+        JoinRequest storage request = _joinRequests[requestId];
+        request.quorumMemberCount = _activeMemberCount;
+
+        uint256 len = _members.length;
+        for (uint256 i = 0; i < len; i++) {
+            address member = _members[i];
+            if (_isActiveMember[member]) {
+                request.eligibleVoter[member] = true;
+            }
+        }
+    }
+
+    function _trackOpenInviteProposal(uint256 proposalId) internal {
+        if (_openInviteProposalIndexPlusOne[proposalId] != 0) return;
+
+        _openInviteProposalIds.push(proposalId);
+        _openInviteProposalIndexPlusOne[proposalId] = _openInviteProposalIds.length;
+    }
+
+    function _trackOpenJoinRequest(uint256 requestId) internal {
+        if (_openJoinRequestIndexPlusOne[requestId] != 0) return;
+
+        _openJoinRequestIds.push(requestId);
+        _openJoinRequestIndexPlusOne[requestId] = _openJoinRequestIds.length;
+    }
+
+    function _closeInviteProposal(uint256 proposalId) internal {
+        InviteProposal storage proposal = _inviteProposals[proposalId];
+        if (!proposal.open) return;
+
+        proposal.open = false;
+        _removeOpenInviteProposal(proposalId);
+    }
+
+    function _closeJoinRequest(uint256 requestId) internal {
+        JoinRequest storage request = _joinRequests[requestId];
+        if (!request.open) return;
+
+        request.open = false;
+        if (_openJoinRequestOf[request.applicant] == requestId) {
+            delete _openJoinRequestOf[request.applicant];
+        }
+        _removeOpenJoinRequest(requestId);
+    }
+
+    function _closeAllOpenMembershipItems() internal {
+        while (_openInviteProposalIds.length != 0) {
+            uint256 proposalId = _openInviteProposalIds[_openInviteProposalIds.length - 1];
+            _inviteProposals[proposalId].open = false;
+            delete _openInviteProposalIndexPlusOne[proposalId];
+            _openInviteProposalIds.pop();
+        }
+
+        while (_openJoinRequestIds.length != 0) {
+            uint256 requestId = _openJoinRequestIds[_openJoinRequestIds.length - 1];
+            JoinRequest storage request = _joinRequests[requestId];
+            request.open = false;
+            if (_openJoinRequestOf[request.applicant] == requestId) {
+                delete _openJoinRequestOf[request.applicant];
+            }
+            delete _openJoinRequestIndexPlusOne[requestId];
+            _openJoinRequestIds.pop();
+        }
+    }
+
+    function _removeOpenInviteProposal(uint256 proposalId) private {
+        uint256 indexPlusOne = _openInviteProposalIndexPlusOne[proposalId];
+        if (indexPlusOne == 0) return;
+
+        uint256 index = indexPlusOne - 1;
+        uint256 lastIndex = _openInviteProposalIds.length - 1;
+        if (index != lastIndex) {
+            uint256 movedProposalId = _openInviteProposalIds[lastIndex];
+            _openInviteProposalIds[index] = movedProposalId;
+            _openInviteProposalIndexPlusOne[movedProposalId] = indexPlusOne;
+        }
+
+        _openInviteProposalIds.pop();
+        delete _openInviteProposalIndexPlusOne[proposalId];
+    }
+
+    function _removeOpenJoinRequest(uint256 requestId) private {
+        uint256 indexPlusOne = _openJoinRequestIndexPlusOne[requestId];
+        if (indexPlusOne == 0) return;
+
+        uint256 index = indexPlusOne - 1;
+        uint256 lastIndex = _openJoinRequestIds.length - 1;
+        if (index != lastIndex) {
+            uint256 movedRequestId = _openJoinRequestIds[lastIndex];
+            _openJoinRequestIds[index] = movedRequestId;
+            _openJoinRequestIndexPlusOne[movedRequestId] = indexPlusOne;
+        }
+
+        _openJoinRequestIds.pop();
+        delete _openJoinRequestIndexPlusOne[requestId];
     }
 }

@@ -60,7 +60,7 @@ contract ChainoraRoscaPool is
 
         _poolStatus = Types.PoolStatus.Forming;
 
-        _addMember(initConfig.creator);
+        _activateMember(initConfig.creator);
         _memberReputationSnapshot[initConfig.creator] = initConfig.creatorReputationSnapshot;
     }
 
@@ -90,6 +90,10 @@ contract ChainoraRoscaPool is
 
     function cancelJoinRequest(uint256 requestId) external {
         _cancelJoinRequest(msg.sender, requestId);
+    }
+
+    function leaveDuringForming() external {
+        _leaveDuringForming(msg.sender);
     }
 
     function contribute() external {
