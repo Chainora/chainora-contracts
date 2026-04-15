@@ -24,7 +24,7 @@ contract ChainoraRoscaPoolAccessTest is ChainoraTestBase {
     }
 
     function testOnlyActiveMemberCanFinalize() external {
-        uint64 startAt = _reachPayoutOpenWithBid();
+        (uint64 startAt,) = _reachPayoutOpenWithBid(false);
 
         vm.prank(outsider);
         vm.expectRevert(Errors.NotActiveMember.selector);
@@ -39,14 +39,55 @@ contract ChainoraRoscaPoolAccessTest is ChainoraTestBase {
     }
 
     function testFinalizeRevertsBeforePeriodEnd() external {
-        _reachPayoutOpenWithBid();
+        _reachPayoutOpenWithBid(false);
 
         vm.prank(member1);
         vm.expectRevert(Errors.DeadlineNotReached.selector);
         pool.finalizePeriod();
     }
 
-    function _reachPayoutOpenWithBid() internal returns (uint64 startAt) {
+    function testFinalizeAutoPaysUnclaimedRecipientAfterPeriodEnd() external {
+        (uint64 startAt, uint256 payoutAmount) = _reachPayoutOpenWithBid(false);
+        uint256 balanceBefore = token.balanceOf(member1);
+
+        vm.warp(uint256(startAt) + uint256(pool.periodDuration()) + 1);
+
+        vm.prank(member2);
+        pool.finalizePeriod();
+
+        assertEq(token.balanceOf(member1), balanceBefore + payoutAmount);
+        assertEq(pool.currentPeriod(), 2);
+
+        (,,,,,,,,, bool payoutClaimed,) = pool.periodInfo(1, 1);
+        assertTrue(payoutClaimed);
+    }
+
+    function testFinalizeAfterManualClaimDoesNotDoublePay() external {
+        (uint64 startAt,) = _reachPayoutOpenWithBid(true);
+        uint256 balanceAfterClaim = token.balanceOf(member1);
+
+        vm.warp(uint256(startAt) + uint256(pool.periodDuration()) + 1);
+
+        vm.prank(member2);
+        pool.finalizePeriod();
+
+        assertEq(token.balanceOf(member1), balanceAfterClaim);
+    }
+
+    function testClaimPayoutFailsAfterAutoFinalizePayout() external {
+        (uint64 startAt,) = _reachPayoutOpenWithBid(false);
+
+        vm.warp(uint256(startAt) + uint256(pool.periodDuration()) + 1);
+
+        vm.prank(member2);
+        pool.finalizePeriod();
+
+        vm.prank(member1);
+        vm.expectRevert(Errors.PayoutUnavailable.selector);
+        pool.claimPayout();
+    }
+
+    function _reachPayoutOpenWithBid(bool claimWinnerPayout) internal returns (uint64 startAt, uint256 payoutAmount) {
         _contributeAllActive();
 
         uint64 contributionDeadline;
@@ -62,7 +103,11 @@ contract ChainoraRoscaPoolAccessTest is ChainoraTestBase {
         vm.prank(creator);
         pool.closeAuctionAndSelectRecipient();
 
-        vm.prank(member1);
-        pool.claimPayout();
+        (,,,,,,,, payoutAmount,,) = pool.periodInfo(1, 1);
+
+        if (claimWinnerPayout) {
+            vm.prank(member1);
+            pool.claimPayout();
+        }
     }
 }

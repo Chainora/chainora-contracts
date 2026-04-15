@@ -603,7 +603,7 @@ await walletClient.writeContract({
 
 ### 5.4. `claimPayout()`
 
-**Description**: Lets the selected recipient claim the payout for the current period.
+**Description**: Lets the selected recipient claim the payout early while the current period is still open for payout.
 
 **Call**:
 
@@ -619,6 +619,10 @@ function claimPayout() external
 - period status must be `PayoutOpen`
 - caller must be the selected recipient
 - payout must not be claimed already
+
+**Notes**:
+- calling `claimPayout()` is optional before period end
+- if the recipient does not claim in time, `finalizePeriod()` auto-settles the payout to the selected recipient after `periodDuration`
 
 **Common revert cases**:
 - `Errors.PayoutUnavailable()`
@@ -679,7 +683,7 @@ await walletClient.writeContract({
 
 ### 5.6. `finalizePeriod()`
 
-**Description**: Finalizes the current period after payout and full period expiry.
+**Description**: Finalizes the current period after full period expiry and auto-settles payout if it is still unclaimed.
 
 **Call**:
 
@@ -696,10 +700,10 @@ function finalizePeriod() external
 - pool status must be `Active`
 - cycle must not be complete
 - period status must be `PayoutOpen`
-- payout must already be claimed
 - current time must be at or after `startAt + periodDuration`
 
 **Result**:
+- if payout is still unclaimed, it is transferred to the selected recipient first
 - current period becomes `Finalized`
 - if all active members have already received in the current cycle, extend voting opens
 - otherwise the next period opens immediately
@@ -707,10 +711,10 @@ function finalizePeriod() external
 **Common revert cases**:
 - `Errors.NotActiveMember()`
 - `Errors.InvalidState()`
-- `Errors.PayoutUnavailable()`
 - `Errors.DeadlineNotReached()`
 
-**Event**:
+**Events**:
+- `ChainoraPayoutClaimed(uint256 cycleId, uint256 periodId, address recipient, uint256 amount)` if payout was still unclaimed
 - `ChainoraPeriodFinalized(uint256 cycleId, uint256 periodId)`
 
 **Example**:
@@ -1134,9 +1138,9 @@ const [currentCycle, currentPeriod, activeMemberCount, cycleCompleted] = await P
 2. Active members call contribute() before contributionDeadline
 3. Eligible member optionally calls submitDiscountBid(discount)
 4. After auctionDeadline, active member calls closeAuctionAndSelectRecipient()
-5. Selected recipient calls claimPayout()
+5. Selected recipient may call claimPayout() before period end
 6. Members with yield call claimYield()
-7. After period end, active member calls finalizePeriod()
+7. After period end, active member calls finalizePeriod(); if payout is still unclaimed, finalize auto-transfers it to the selected recipient
 ```
 
 ### 11.4. Handle default and archive

@@ -16,10 +16,7 @@ abstract contract SettlementModule is PoolStorage {
         if (period.recipient != recipient) revert Errors.NotRecipient();
         if (period.payoutClaimed) revert Errors.AlreadyClaimed();
 
-        period.payoutClaimed = true;
-        _stablecoin.safeTransfer(recipient, period.payoutAmount);
-
-        emit ChainoraPayoutClaimed(_currentCycle, _currentPeriod, recipient, period.payoutAmount);
+        _payoutRecipient(period, recipient);
     }
 
     function _claimYield(address member) internal {
@@ -39,12 +36,16 @@ abstract contract SettlementModule is PoolStorage {
 
         PeriodState storage period = _currentPeriodStorage();
         if (period.status != Types.PeriodStatus.PayoutOpen) revert Errors.InvalidState();
-        if (!period.payoutClaimed) revert Errors.PayoutUnavailable();
         if (block.timestamp < PeriodMath.periodEnd(period.startAt, _periodDuration)) {
             revert Errors.DeadlineNotReached();
         }
 
         period.status = Types.PeriodStatus.Finalized;
+        // Lock the period before transferring so a malicious token cannot reenter finalization.
+        if (!period.payoutClaimed) {
+            _payoutRecipient(period, period.recipient);
+        }
+
         emit ChainoraPeriodFinalized(_currentCycle, _currentPeriod);
 
         if (_allActiveMembersReceivedInCurrentCycle()) {
@@ -56,5 +57,12 @@ abstract contract SettlementModule is PoolStorage {
             _currentPeriod += 1;
             _openPeriod(_currentCycle, _currentPeriod);
         }
+    }
+
+    function _payoutRecipient(PeriodState storage period, address recipient) private {
+        period.payoutClaimed = true;
+        _stablecoin.safeTransfer(recipient, period.payoutAmount);
+
+        emit ChainoraPayoutClaimed(_currentCycle, _currentPeriod, recipient, period.payoutAmount);
     }
 }
