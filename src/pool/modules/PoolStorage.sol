@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 import {Types} from "src/libraries/Types.sol";
 import {Errors} from "src/libraries/Errors.sol";
 import {Events} from "src/libraries/Events.sol";
-import {PeriodMath} from "src/libraries/PeriodMath.sol";
 import {IChainoraRoscaFactory} from "src/core/IChainoraRoscaFactory.sol";
 import {IChainoraProtocolRegistry} from "src/core/IChainoraProtocolRegistry.sol";
 import {IChainoraReputationAdapter} from "src/adapters/interfaces/IChainoraReputationAdapter.sol";
@@ -37,6 +36,7 @@ abstract contract PoolStorage is Events {
         uint64 startAt;
         uint64 contributionDeadline;
         uint64 auctionDeadline;
+        uint64 payoutDeadline;
         address recipient;
         address bestBidder;
         uint256 bestDiscount;
@@ -96,6 +96,7 @@ abstract contract PoolStorage is Events {
     uint256 internal _extendVoteRound;
     mapping(uint256 => mapping(address => bool)) internal _extendVoted;
     bool internal _extendVoteOpen;
+    uint64 internal _extendVoteDeadline;
     uint256 internal _extendYesVotes;
 
     mapping(address => bool) internal _leftArchive;
@@ -135,8 +136,9 @@ abstract contract PoolStorage is Events {
         uint64 startAt = uint64(block.timestamp);
         period.status = Types.PeriodStatus.Collecting;
         period.startAt = startAt;
-        period.contributionDeadline = PeriodMath.contributionDeadline(startAt, _contributionWindow);
-        period.auctionDeadline = PeriodMath.auctionDeadline(startAt, _contributionWindow, _auctionWindow);
+        period.contributionDeadline = startAt + uint64(_contributionWindow);
+        period.auctionDeadline = 0;
+        period.payoutDeadline = 0;
     }
 
     function _startFirstCycle() internal {
@@ -144,6 +146,9 @@ abstract contract PoolStorage is Events {
         _currentCycle = 1;
         _currentPeriod = 1;
         _cycleCompleted = false;
+        _extendVoteOpen = false;
+        _extendVoteDeadline = 0;
+        _extendYesVotes = 0;
         _cycleMemberCount[1] = _activeMemberCount;
         _openPeriod(1, 1);
         emit ChainoraPoolActivated(1, _periods[1][1].startAt);
@@ -159,9 +164,16 @@ abstract contract PoolStorage is Events {
         _currentCycle += 1;
         _currentPeriod = 1;
         _cycleCompleted = false;
+        _extendVoteOpen = false;
+        _extendVoteDeadline = 0;
+        _extendYesVotes = 0;
         _cycleMemberCount[_currentCycle] = _activeMemberCount;
         _openPeriod(_currentCycle, 1);
         emit ChainoraPoolActivated(_currentCycle, _periods[_currentCycle][1].startAt);
+    }
+
+    function _payoutWindow() internal view returns (uint32) {
+        return _periodDuration - _contributionWindow - _auctionWindow;
     }
 
     function _activeMembersList() internal view returns (address[] memory activeMembers) {

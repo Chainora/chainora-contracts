@@ -5,9 +5,9 @@ import {SafeTransferLibExt} from "src/libraries/SafeTransferLibExt.sol";
 import {Errors} from "src/libraries/Errors.sol";
 import {VoteMath} from "src/libraries/VoteMath.sol";
 import {Types} from "src/libraries/Types.sol";
-import {PoolStorage} from "src/pool/modules/PoolStorage.sol";
+import {RuntimeSyncModule} from "src/pool/modules/RuntimeSyncModule.sol";
 
-abstract contract ExtensionModule is PoolStorage {
+abstract contract ExtensionModule is RuntimeSyncModule {
     using SafeTransferLibExt for address;
 
     function _voteExtendCycle(address voter, bool support) internal {
@@ -15,12 +15,14 @@ abstract contract ExtensionModule is PoolStorage {
         if (_poolStatus != Types.PoolStatus.Active || !_cycleCompleted || !_extendVoteOpen) {
             revert Errors.InvalidState();
         }
+        if (_extendVoteDeadline != 0 && block.timestamp > _extendVoteDeadline) revert Errors.DeadlinePassed();
         if (_extendVoted[_extendVoteRound][voter]) revert Errors.AlreadyVoted();
 
         _extendVoted[_extendVoteRound][voter] = true;
 
         if (!support) {
             _extendVoteOpen = false;
+            _extendVoteDeadline = 0;
             _poolStatus = Types.PoolStatus.Archived;
             emit ChainoraExtendVoted(voter, false, _extendYesVotes, _activeMemberCount);
             emit ChainoraPoolArchived();
@@ -32,6 +34,7 @@ abstract contract ExtensionModule is PoolStorage {
 
         if (VoteMath.isUnanimous(_extendYesVotes, _activeMemberCount)) {
             _extendVoteOpen = false;
+            _extendVoteDeadline = 0;
             _startNextCycle();
         }
     }
@@ -41,6 +44,7 @@ abstract contract ExtensionModule is PoolStorage {
 
         if (_poolStatus == Types.PoolStatus.Active && _cycleCompleted && _extendVoteOpen) {
             _extendVoteOpen = false;
+            _extendVoteDeadline = 0;
             _poolStatus = Types.PoolStatus.Archived;
             emit ChainoraPoolArchived();
             return;

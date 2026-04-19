@@ -29,18 +29,18 @@ contract RoscaLifecycleIntegrationTest is ChainoraTestBase {
     function testFinalizeAutoPaysBidWinnerIfUnclaimed() external {
         _contributeAllActive();
 
-        (, uint64 startAt, uint64 contributionDeadline, uint64 auctionDeadline,,,,,,,) =
-            pool.periodInfo(pool.currentCycle(), pool.currentPeriod());
+        Types.RuntimeStatusView memory status = _currentRuntimeStatus();
 
-        vm.warp(uint256(contributionDeadline) + 1);
+        vm.warp(uint256(status.contributionDeadline) + 1);
 
         vm.prank(member1);
         pool.submitDiscountBid(10e6);
 
-        vm.warp(uint256(auctionDeadline) + 1);
+        status = _currentRuntimeStatus();
+        vm.warp(uint256(status.auctionDeadline) + 1);
 
         vm.prank(creator);
-        pool.closeAuctionAndSelectRecipient();
+        pool.syncRuntime();
 
         (,,,, address recipient,,,, uint256 payoutAmount, bool payoutClaimed,) =
             pool.periodInfo(pool.currentCycle(), pool.currentPeriod());
@@ -49,10 +49,11 @@ contract RoscaLifecycleIntegrationTest is ChainoraTestBase {
 
         uint256 balanceBefore = token.balanceOf(recipient);
 
-        vm.warp(uint256(startAt) + uint256(pool.periodDuration()) + 1);
+        status = _currentRuntimeStatus();
+        vm.warp(uint256(status.payoutDeadline) + 1);
 
         vm.prank(member2);
-        pool.finalizePeriod();
+        pool.syncRuntime();
 
         assertEq(token.balanceOf(recipient), balanceBefore + payoutAmount);
         assertEq(pool.currentPeriod(), 2);
@@ -61,41 +62,46 @@ contract RoscaLifecycleIntegrationTest is ChainoraTestBase {
     function _finishPeriodWithBid(address bidder, uint256 discount) internal {
         _contributeAllActive();
 
-        (, uint64 startAt, uint64 contributionDeadline, uint64 auctionDeadline,,,,,,,) =
-            pool.periodInfo(pool.currentCycle(), pool.currentPeriod());
+        Types.RuntimeStatusView memory status = _currentRuntimeStatus();
 
-        vm.warp(uint256(contributionDeadline) + 1);
+        vm.warp(uint256(status.contributionDeadline) + 1);
 
         vm.prank(bidder);
         pool.submitDiscountBid(discount);
 
-        vm.warp(uint256(auctionDeadline) + 1);
+        status = _currentRuntimeStatus();
+        vm.warp(uint256(status.auctionDeadline) + 1);
 
         vm.prank(creator);
-        pool.closeAuctionAndSelectRecipient();
+        pool.syncRuntime();
 
         vm.prank(bidder);
         pool.claimPayout();
 
-        vm.warp(uint256(startAt) + uint256(pool.periodDuration()) + 1);
+        status = _currentRuntimeStatus();
+        vm.warp(uint256(status.payoutDeadline) + 1);
 
         vm.prank(member1);
-        pool.finalizePeriod();
+        pool.syncRuntime();
     }
 
     function _finishPeriodWithFallback(address expectedRecipient, uint256 recipientScore) internal {
         _contributeAllActive();
 
-        (, uint64 startAt, uint64 contributionDeadline, uint64 auctionDeadline,,,,,,,) =
-            pool.periodInfo(pool.currentCycle(), pool.currentPeriod());
+        Types.RuntimeStatusView memory status = _currentRuntimeStatus();
 
         reputationAdapter.setScore(expectedRecipient, recipientScore);
 
-        vm.warp(uint256(contributionDeadline) + 1);
-        vm.warp(uint256(auctionDeadline) + 1);
+        vm.warp(uint256(status.contributionDeadline) + 1);
 
         vm.prank(member1);
-        pool.closeAuctionAndSelectRecipient();
+        pool.syncRuntime();
+
+        status = _currentRuntimeStatus();
+        vm.warp(uint256(status.auctionDeadline) + 1);
+
+        vm.prank(member1);
+        pool.syncRuntime();
 
         (,,,, address recipient,,,,,,) = pool.periodInfo(pool.currentCycle(), pool.currentPeriod());
         assertEq(recipient, expectedRecipient);
@@ -103,9 +109,10 @@ contract RoscaLifecycleIntegrationTest is ChainoraTestBase {
         vm.prank(expectedRecipient);
         pool.claimPayout();
 
-        vm.warp(uint256(startAt) + uint256(pool.periodDuration()) + 1);
+        status = _currentRuntimeStatus();
+        vm.warp(uint256(status.payoutDeadline) + 1);
 
         vm.prank(creator);
-        pool.finalizePeriod();
+        pool.syncRuntime();
     }
 }

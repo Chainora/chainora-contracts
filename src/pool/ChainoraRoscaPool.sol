@@ -96,19 +96,22 @@ contract ChainoraRoscaPool is
         _leaveDuringForming(msg.sender);
     }
 
+    function syncRuntime() external {
+        _syncRuntimePhase(msg.sender);
+    }
+
     function contribute() external {
+        _syncRuntimePhase(msg.sender);
         _contribute(msg.sender);
     }
 
     function submitDiscountBid(uint256 discount) external {
+        _syncRuntimePhase(msg.sender);
         _submitDiscountBid(msg.sender, discount);
     }
 
-    function closeAuctionAndSelectRecipient() external {
-        _closeAuctionAndSelectRecipient(msg.sender);
-    }
-
     function claimPayout() external {
+        _syncRuntimePhase(msg.sender);
         _claimPayout(msg.sender);
     }
 
@@ -116,19 +119,18 @@ contract ChainoraRoscaPool is
         _claimYield(msg.sender);
     }
 
-    function finalizePeriod() external {
-        _finalizePeriod(msg.sender);
-    }
-
     function markDefaultAndArchive(address defaultedMember) external {
+        _syncRuntimePhase(msg.sender);
         _markDefaultAndArchive(msg.sender, defaultedMember);
     }
 
     function voteExtendCycle(bool support) external {
+        _syncRuntimePhase(msg.sender);
         _voteExtendCycle(msg.sender, support);
     }
 
     function archive() external {
+        _syncRuntimePhase(msg.sender);
         _archive(msg.sender);
     }
 
@@ -293,6 +295,10 @@ contract ChainoraRoscaPool is
 
     function claimableArchiveRefund(address member) external view returns (uint256) {
         return _claimableArchiveRefund[member];
+    }
+
+    function runtimeStatus() external view returns (Types.RuntimeStatusView memory status) {
+        status = _runtimeStatus();
     }
 
     function cycleCompleted() external view returns (bool) {

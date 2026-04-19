@@ -188,6 +188,10 @@ abstract contract ChainoraTestBase is Test {
         pool.contribute();
     }
 
+    function _currentRuntimeStatus() internal view returns (Types.RuntimeStatusView memory status) {
+        status = pool.runtimeStatus();
+    }
+
     function _verifyUser(address user) internal {
         if (deviceAdapter.isDeviceVerified(user)) {
             return;
