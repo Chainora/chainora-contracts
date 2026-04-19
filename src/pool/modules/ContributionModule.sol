@@ -4,9 +4,9 @@ pragma solidity ^0.8.24;
 import {Errors} from "src/libraries/Errors.sol";
 import {SafeTransferLibExt} from "src/libraries/SafeTransferLibExt.sol";
 import {Types} from "src/libraries/Types.sol";
-import {PoolStorage} from "src/pool/modules/PoolStorage.sol";
+import {RuntimeSyncModule} from "src/pool/modules/RuntimeSyncModule.sol";
 
-abstract contract ContributionModule is PoolStorage {
+abstract contract ContributionModule is RuntimeSyncModule {
     using SafeTransferLibExt for address;
 
     function _contribute(address member) internal {

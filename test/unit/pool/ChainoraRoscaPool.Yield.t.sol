@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Errors} from "src/libraries/Errors.sol";
+import {Types} from "src/libraries/Types.sol";
 import {ChainoraTestBase} from "test/helpers/ChainoraTestBase.t.sol";
 
 contract ChainoraRoscaPoolYieldTest is ChainoraTestBase {
@@ -14,7 +15,7 @@ contract ChainoraRoscaPoolYieldTest is ChainoraTestBase {
     }
 
     function testYieldAccruesButRemainsLockedUntilArchive() external {
-        (uint64 startAt, uint256 share) = _reachPayoutOpenWithBid(member1, 10e6, true);
+        (uint64 payoutDeadline, uint256 share) = _reachPayoutOpenWithBid(member1, 10e6, true);
 
         assertEq(pool.claimableYield(creator), share);
         assertEq(pool.claimableYield(member2), share);
@@ -26,10 +27,10 @@ contract ChainoraRoscaPoolYieldTest is ChainoraTestBase {
         vm.prank(member1);
         pool.claimPayout();
 
-        vm.warp(uint256(startAt) + uint256(pool.periodDuration()) + 1);
+        vm.warp(uint256(payoutDeadline) + 1);
 
         vm.prank(member2);
-        pool.finalizePeriod();
+        pool.syncRuntime();
 
         vm.prank(creator);
         vm.expectRevert(Errors.PoolNotArchived.selector);
@@ -95,15 +96,15 @@ contract ChainoraRoscaPoolYieldTest is ChainoraTestBase {
     }
 
     function _finishBidPeriod(address bidder, uint256 discount) internal {
-        (uint64 startAt,) = _reachPayoutOpenWithBid(bidder, discount, false);
+        (uint64 payoutDeadline,) = _reachPayoutOpenWithBid(bidder, discount, false);
 
         vm.prank(bidder);
         pool.claimPayout();
 
-        vm.warp(uint256(startAt) + uint256(pool.periodDuration()) + 1);
+        vm.warp(uint256(payoutDeadline) + 1);
 
         vm.prank(creator);
-        pool.finalizePeriod();
+        pool.syncRuntime();
     }
 
     function _archiveCurrentPeriodOnMemberDefault(address defaultedMember) internal {
@@ -121,21 +122,18 @@ contract ChainoraRoscaPoolYieldTest is ChainoraTestBase {
 
     function _reachPayoutOpenWithBid(address bidder, uint256 discount, bool expectYieldEvents)
         internal
-        returns (uint64 startAt, uint256 share)
+        returns (uint64 payoutDeadline, uint256 share)
     {
         _contributeAllActive();
 
-        uint64 contributionDeadline;
-        uint64 auctionDeadline;
-        (, startAt, contributionDeadline, auctionDeadline,,,,,,,) =
-            pool.periodInfo(pool.currentCycle(), pool.currentPeriod());
-
-        vm.warp(uint256(contributionDeadline) + 1);
+        Types.RuntimeStatusView memory status = _currentRuntimeStatus();
+        vm.warp(uint256(status.contributionDeadline) + 1);
 
         vm.prank(bidder);
         pool.submitDiscountBid(discount);
 
-        vm.warp(uint256(auctionDeadline) + 1);
+        status = _currentRuntimeStatus();
+        vm.warp(uint256(status.auctionDeadline) + 1);
 
         share = discount / (pool.activeMemberCount() - 1);
 
@@ -157,6 +155,9 @@ contract ChainoraRoscaPoolYieldTest is ChainoraTestBase {
         }
 
         vm.prank(creator);
-        pool.closeAuctionAndSelectRecipient();
+        pool.syncRuntime();
+
+        status = _currentRuntimeStatus();
+        payoutDeadline = status.payoutDeadline;
     }
 }

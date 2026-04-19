@@ -12,15 +12,16 @@ contract RoscaInvariantsTest is ChainoraTestBase {
 
     function testInvariantOneRecipientPerPeriod() external {
         _contributeAllActive();
-        (,, uint64 contributionDeadline, uint64 auctionDeadline,,,,,,,) = pool.periodInfo(1, 1);
+        Types.RuntimeStatusView memory status = _currentRuntimeStatus();
 
-        vm.warp(uint256(contributionDeadline) + 1);
+        vm.warp(uint256(status.contributionDeadline) + 1);
         vm.prank(member1);
         pool.submitDiscountBid(5e6);
 
-        vm.warp(uint256(auctionDeadline) + 1);
+        status = _currentRuntimeStatus();
+        vm.warp(uint256(status.auctionDeadline) + 1);
         vm.prank(creator);
-        pool.closeAuctionAndSelectRecipient();
+        pool.syncRuntime();
 
         (,,,, address recipient,,,,,,) = pool.periodInfo(1, 1);
         assertTrue(recipient == member1 || recipient == creator || recipient == member2);
@@ -50,6 +51,6 @@ contract RoscaInvariantsTest is ChainoraTestBase {
     function testInvariantNonMemberCannotFinalize() external {
         vm.prank(outsider);
         vm.expectRevert(Errors.NotActiveMember.selector);
-        pool.finalizePeriod();
+        pool.syncRuntime();
     }
 }

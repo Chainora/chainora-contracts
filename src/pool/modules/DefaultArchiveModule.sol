@@ -3,9 +3,9 @@ pragma solidity ^0.8.24;
 
 import {Errors} from "src/libraries/Errors.sol";
 import {Types} from "src/libraries/Types.sol";
-import {PoolStorage} from "src/pool/modules/PoolStorage.sol";
+import {RuntimeSyncModule} from "src/pool/modules/RuntimeSyncModule.sol";
 
-abstract contract DefaultArchiveModule is PoolStorage {
+abstract contract DefaultArchiveModule is RuntimeSyncModule {
     function _markDefaultAndArchive(address caller, address defaultedMember) internal {
         _requireActiveMember(caller);
         if (_poolStatus != Types.PoolStatus.Active || _cycleCompleted) revert Errors.InvalidState();

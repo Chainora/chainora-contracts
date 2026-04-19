@@ -46,4 +46,25 @@ library Types {
         uint256 contributionAmount;
         uint256 minReputation;
     }
+
+    struct RuntimeStatusView {
+        PoolStatus poolStatus;
+        uint256 currentCycle;
+        uint256 currentPeriod;
+        PeriodStatus storedPeriodStatus;
+        uint64 startAt;
+        uint64 contributionDeadline;
+        uint64 auctionDeadline;
+        uint64 payoutDeadline;
+        bool cycleCompleted;
+        bool extendVoteOpen;
+        uint64 extendVoteDeadline;
+        bool allActiveContributed;
+        bool defaultPending;
+        bool auctionReady;
+        bool auctionCloseReady;
+        bool finalizeReady;
+        bool extendVoteExpired;
+        address[] unpaidActiveMembers;
+    }
 }

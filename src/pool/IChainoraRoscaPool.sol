@@ -18,6 +18,8 @@ interface IChainoraRoscaPool {
 
     function leaveDuringForming() external;
 
+    function syncRuntime() external;
+
     function markDefaultAndArchive(address defaultedMember) external;
 
     function claimArchiveRefund() external;
@@ -39,6 +41,8 @@ interface IChainoraRoscaPool {
     function memberReputationSnapshot(address account) external view returns (uint256);
 
     function claimableArchiveRefund(address member) external view returns (uint256);
+
+    function runtimeStatus() external view returns (Types.RuntimeStatusView memory status);
 
     function joinRequest(uint256 requestId)
         external

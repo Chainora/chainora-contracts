@@ -32,23 +32,28 @@ contract ExtensionOrArchiveIntegrationTest is ChainoraTestBase {
     function _finishPeriodWithFallback(address expectedRecipient, uint256 recipientScore) internal {
         _contributeAllActive();
 
-        (, uint64 startAt, uint64 contributionDeadline, uint64 auctionDeadline,,,,,,,) =
-            pool.periodInfo(pool.currentCycle(), pool.currentPeriod());
+        Types.RuntimeStatusView memory status = _currentRuntimeStatus();
 
         reputationAdapter.setScore(expectedRecipient, recipientScore);
 
-        vm.warp(uint256(contributionDeadline) + 1);
-        vm.warp(uint256(auctionDeadline) + 1);
+        vm.warp(uint256(status.contributionDeadline) + 1);
 
         vm.prank(member1);
-        pool.closeAuctionAndSelectRecipient();
+        pool.syncRuntime();
+
+        status = _currentRuntimeStatus();
+        vm.warp(uint256(status.auctionDeadline) + 1);
+
+        vm.prank(member1);
+        pool.syncRuntime();
 
         vm.prank(expectedRecipient);
         pool.claimPayout();
 
-        vm.warp(uint256(startAt) + uint256(pool.periodDuration()) + 1);
+        status = _currentRuntimeStatus();
+        vm.warp(uint256(status.payoutDeadline) + 1);
 
         vm.prank(creator);
-        pool.finalizePeriod();
+        pool.syncRuntime();
     }
 }
