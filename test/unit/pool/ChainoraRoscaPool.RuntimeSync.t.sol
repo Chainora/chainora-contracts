@@ -16,8 +16,13 @@ contract ChainoraRoscaPoolRuntimeSyncTest is ChainoraTestBase {
         Types.RuntimeStatusView memory status = _currentRuntimeStatus();
         assertEq(status.auctionDeadline, 0);
         assertEq(status.payoutDeadline, 0);
+        assertFalse(status.payoutReady);
 
         vm.warp(uint256(status.contributionDeadline) + 1);
+
+        status = _currentRuntimeStatus();
+        assertTrue(status.auctionReady);
+        assertFalse(status.payoutReady);
 
         vm.prank(creator);
         pool.syncRuntime();
@@ -26,8 +31,12 @@ contract ChainoraRoscaPoolRuntimeSyncTest is ChainoraTestBase {
         assertEq(uint256(status.storedPeriodStatus), uint256(Types.PeriodStatus.Auction));
         assertEq(status.auctionDeadline, uint64(block.timestamp) + uint64(pool.auctionWindow()));
         assertEq(status.payoutDeadline, 0);
+        assertFalse(status.payoutReady);
 
         vm.warp(uint256(status.auctionDeadline) + 1);
+
+        status = _currentRuntimeStatus();
+        assertTrue(status.payoutReady);
 
         vm.prank(member1);
         pool.syncRuntime();
@@ -81,6 +90,42 @@ contract ChainoraRoscaPoolRuntimeSyncTest is ChainoraTestBase {
         assertTrue(payoutClaimed);
     }
 
+    function testSyncRuntimeSkipsExpiredAuctionAndOpensPayout() external {
+        _contributeAllActive();
+        reputationAdapter.setScore(member2, 2000);
+
+        Types.RuntimeStatusView memory status = _currentRuntimeStatus();
+        vm.warp(uint256(status.contributionDeadline) + uint256(pool.auctionWindow()) + 1);
+
+        vm.prank(member1);
+        pool.syncRuntime();
+
+        status = _currentRuntimeStatus();
+        assertEq(uint256(status.storedPeriodStatus), uint256(Types.PeriodStatus.PayoutOpen));
+        assertEq(
+            status.payoutDeadline,
+            uint64(block.timestamp) + uint64(pool.periodDuration() - pool.contributionWindow() - pool.auctionWindow())
+        );
+
+        (Types.PeriodStatus periodStatus,,,, address recipient,,,,, bool payoutClaimed,) = pool.periodInfo(1, 1);
+        assertEq(uint256(periodStatus), uint256(Types.PeriodStatus.PayoutOpen));
+        assertEq(recipient, member2);
+        assertFalse(payoutClaimed);
+    }
+
+    function testRuntimeStatusReportsPayoutReadyWhenCollectingHasPassedAuctionWindow() external {
+        _contributeAllActive();
+
+        Types.RuntimeStatusView memory status = _currentRuntimeStatus();
+        vm.warp(uint256(status.contributionDeadline) + uint256(pool.auctionWindow()) + 1);
+
+        status = _currentRuntimeStatus();
+        assertEq(uint256(status.storedPeriodStatus), uint256(Types.PeriodStatus.Collecting));
+        assertFalse(status.auctionReady);
+        assertTrue(status.payoutReady);
+        assertFalse(status.archiveReady);
+    }
+
     function testContributeAutoFinalizesExpiredPayoutAndOpensNextPeriod() external {
         _contributeAllActive();
 
@@ -114,7 +159,7 @@ contract ChainoraRoscaPoolRuntimeSyncTest is ChainoraTestBase {
         assertEq(status.payoutDeadline, 0);
     }
 
-    function testRuntimeStatusReportsDefaultPending() external {
+    function testRuntimeStatusReportsArchiveReady() external {
         vm.prank(creator);
         pool.contribute();
         vm.prank(member1);
@@ -125,8 +170,9 @@ contract ChainoraRoscaPoolRuntimeSyncTest is ChainoraTestBase {
 
         status = _currentRuntimeStatus();
         assertEq(uint256(status.storedPeriodStatus), uint256(Types.PeriodStatus.Collecting));
-        assertTrue(status.defaultPending);
+        assertTrue(status.archiveReady);
         assertFalse(status.auctionReady);
+        assertFalse(status.payoutReady);
         assertEq(status.unpaidActiveMembers.length, 1);
         assertEq(status.unpaidActiveMembers[0], member2);
     }

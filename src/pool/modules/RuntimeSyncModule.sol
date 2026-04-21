@@ -24,6 +24,11 @@ abstract contract RuntimeSyncModule is PoolStorage {
                     break;
                 }
 
+                if (_auctionWindowElapsedFromCollecting(period)) {
+                    _skipAuctionAndOpenPayout(period);
+                    continue;
+                }
+
                 _advanceCollectingToAuction(period);
                 continue;
             }
@@ -62,11 +67,29 @@ abstract contract RuntimeSyncModule is PoolStorage {
         period.auctionDeadline = uint64(block.timestamp) + uint64(_auctionWindow);
     }
 
+    function _skipAuctionAndOpenPayout(PeriodState storage period) internal {
+        if (period.status != Types.PeriodStatus.Collecting) revert Errors.InvalidState();
+        if (block.timestamp < period.contributionDeadline) revert Errors.DeadlineNotReached();
+        if (!_allActiveContributed(period)) revert Errors.ContributionMissing();
+
+        period.status = Types.PeriodStatus.Auction;
+        period.auctionDeadline = uint64(block.timestamp);
+
+        _openPayout(period);
+    }
+
     function _selectRecipientAndOpenPayout(PeriodState storage period) internal {
         if (period.status != Types.PeriodStatus.Auction) revert Errors.AuctionNotOpen();
         if (period.auctionDeadline == 0 || block.timestamp < period.auctionDeadline) {
             revert Errors.DeadlineNotReached();
         }
+        if (period.recipient != address(0)) revert Errors.AuctionAlreadyClosed();
+
+        _openPayout(period);
+    }
+
+    function _openPayout(PeriodState storage period) internal {
+        if (period.status != Types.PeriodStatus.Auction) revert Errors.AuctionNotOpen();
         if (period.recipient != address(0)) revert Errors.AuctionAlreadyClosed();
 
         address recipient;
@@ -183,8 +206,9 @@ abstract contract RuntimeSyncModule is PoolStorage {
             bool allContributed = _allActiveContributed(period);
             status.allActiveContributed = allContributed;
             if (period.contributionDeadline != 0 && block.timestamp >= period.contributionDeadline) {
-                status.auctionReady = allContributed;
-                status.defaultPending = !allContributed;
+                status.auctionReady = allContributed && !_auctionWindowElapsedFromCollecting(period);
+                status.payoutReady = allContributed && _auctionWindowElapsedFromCollecting(period);
+                status.archiveReady = !allContributed;
             }
             status.unpaidActiveMembers = _unpaidActiveMembers(period);
             return status;
@@ -193,7 +217,7 @@ abstract contract RuntimeSyncModule is PoolStorage {
         status.allActiveContributed = _allActiveContributed(period);
 
         if (period.status == Types.PeriodStatus.Auction) {
-            status.auctionCloseReady = period.auctionDeadline != 0 && block.timestamp >= period.auctionDeadline;
+            status.payoutReady = period.auctionDeadline != 0 && block.timestamp >= period.auctionDeadline;
         } else if (period.status == Types.PeriodStatus.PayoutOpen) {
             status.finalizeReady = period.payoutDeadline != 0 && block.timestamp >= period.payoutDeadline;
         }
@@ -238,5 +262,10 @@ abstract contract RuntimeSyncModule is PoolStorage {
         assembly {
             mstore(unpaid, cursor)
         }
+    }
+
+    function _auctionWindowElapsedFromCollecting(PeriodState storage period) private view returns (bool) {
+        return period.contributionDeadline != 0
+            && block.timestamp >= uint256(period.contributionDeadline) + uint256(_auctionWindow);
     }
 }

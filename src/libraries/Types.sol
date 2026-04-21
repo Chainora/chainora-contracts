@@ -60,9 +60,9 @@ library Types {
         bool extendVoteOpen;
         uint64 extendVoteDeadline;
         bool allActiveContributed;
-        bool defaultPending;
+        bool archiveReady;
         bool auctionReady;
-        bool auctionCloseReady;
+        bool payoutReady;
         bool finalizeReady;
         bool extendVoteExpired;
         address[] unpaidActiveMembers;
