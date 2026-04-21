@@ -15,3 +15,6 @@ docs/
 
 # Node tooling
 node_modules/
+
+# Local temp files
+.tmp/

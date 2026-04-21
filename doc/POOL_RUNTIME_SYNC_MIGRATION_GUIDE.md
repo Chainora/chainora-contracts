@@ -49,7 +49,7 @@ These public functions were added:
 
 No new pool state enums were introduced.
 
-Applications must not invent new stored states such as `DefaultPending` or `ExtendVoteExpired`. Those are now derived off-chain via `runtimeStatus()`.
+Applications must not invent new stored states such as `ArchiveReady` or `ExtendVoteExpired`. Those are now derived off-chain via `runtimeStatus()`.
 
 ---
 
@@ -112,7 +112,7 @@ If the contribution deadline has passed and not all active members contributed:
 - the stored period state remains `Collecting`
 - the pool does not auto-archive
 - the pool does not auto-open `Auction`
-- `runtimeStatus().defaultPending` becomes `true`
+- `runtimeStatus().archiveReady` becomes `true`
 
 Resolution is still explicit through:
 - `markDefaultAndArchive(defaultedMember)`
@@ -151,9 +151,9 @@ The new `runtimeStatus()` view should be the default integration surface for run
 - `extendVoteOpen`
 - `extendVoteDeadline`
 - `allActiveContributed`
-- `defaultPending`
+- `archiveReady`
 - `auctionReady`
-- `auctionCloseReady`
+- `payoutReady`
 - `finalizeReady`
 - `extendVoteExpired`
 - `unpaidActiveMembers`
@@ -165,8 +165,9 @@ The stored state alone is no longer enough for UX decisions.
 Example:
 - stored `PeriodStatus` can still be `Collecting`
 - but `runtimeStatus()` may show:
+  - `archiveReady = true`, meaning an eligible caller can explicitly archive on default via `markDefaultAndArchive(defaultedMember)`
   - `auctionReady = true`, meaning the next active-member tx can open `Auction`
-  - or `defaultPending = true`, meaning bidding must stay blocked
+  - `payoutReady = true`, meaning the next active-member tx can materialize recipient selection and open `PayoutOpen`
 
 ---
 
@@ -180,22 +181,24 @@ Example:
 - Stop assuming `auctionDeadline` is known at period open
 - Add support for `payoutDeadline`
 - Add support for `extendVoteDeadline` and `extendVoteExpired`
-- Treat `defaultPending`, `auctionReady`, `auctionCloseReady`, and `finalizeReady` as view-level flags, not stored states
+- Treat `archiveReady`, `auctionReady`, `payoutReady`, and `finalizeReady` as view-level flags, not stored states
 
 ### Recommended UI mapping
 
-- `storedPeriodStatus = Collecting` and `defaultPending = false`
+- `storedPeriodStatus = Collecting` and `archiveReady = false`
   - show collecting countdown from `contributionDeadline`
   - show contribution progress
 - `storedPeriodStatus = Collecting` and `auctionReady = true`
   - show that the next eligible transaction can open `Auction`
-- `storedPeriodStatus = Collecting` and `defaultPending = true`
+- `storedPeriodStatus = Collecting` and `payoutReady = true`
+  - show that the next eligible transaction will skip the expired auction window, select the recipient, and open payout
+- `storedPeriodStatus = Collecting` and `archiveReady = true`
   - disable bid CTA
   - show `unpaidActiveMembers`
   - show `markDefaultAndArchive` CTA if the user is eligible
 - `storedPeriodStatus = Auction`
   - use `auctionDeadline` for countdown
-- `storedPeriodStatus = Auction` and `auctionCloseReady = true`
+- `storedPeriodStatus = Auction` and `payoutReady = true`
   - show that the next eligible transaction can materialize recipient selection and open payout
 - `storedPeriodStatus = PayoutOpen`
   - use `payoutDeadline` for countdown
@@ -214,7 +217,7 @@ Example:
 In particular:
 - `auctionDeadline` is `0` before auction starts
 - `periodInfo()` does not expose `payoutDeadline`
-- `periodInfo()` does not expose derived flags such as `defaultPending`
+- `periodInfo()` does not expose derived flags such as `archiveReady`
 
 If you need runtime CTAs or countdowns, prefer `runtimeStatus()`.
 
@@ -228,7 +231,7 @@ If you need runtime CTAs or countdowns, prefer `runtimeStatus()`.
 - Stop assuming `auctionDeadline = startAt + contributionWindow + auctionWindow`
 - Start indexing or polling `runtimeStatus()` if you need derived runtime flags
 - If your read model stores deadlines, add `payoutDeadline`
-- Treat `defaultPending` and `extendVoteExpired` as derived runtime conditions, not enum values
+- Treat `archiveReady` and `extendVoteExpired` as derived runtime conditions, not enum values
 
 ### Event consumers
 
@@ -277,7 +280,7 @@ const status = await publicClient.readContract({
 Use `status` to decide:
 - which countdown to render
 - whether the pool is blocked by an unpaid member
-- whether the next eligible transaction can open auction or finalize payout
+- whether the next eligible transaction can open auction, open payout, or finalize payout
 - whether extend voting is still open or already expired
 
 ### Explicit sync call
@@ -301,10 +304,11 @@ Do not use it as a replacement for `archive()` or `markDefaultAndArchive()`.
 Frontend and backend teams should re-test at least these scenarios:
 
 1. `Collecting` finishes, everyone has contributed, and the first bid opens `Auction` and places the bid in one transaction.
-2. `Auction` expires, and the first payout claim both opens `PayoutOpen` and claims in one transaction.
-3. `PayoutOpen` expires, and the next period's first contribution finalizes the previous period and contributes to the next one in one transaction.
-4. A member misses contribution, `storedPeriodStatus` stays `Collecting`, and `runtimeStatus().defaultPending` turns `true`.
-5. Extend voting opens, expires after 1 day, and the pool still requires explicit `archive()`.
+2. `Collecting` remains stored on-chain past the auction window, and `runtimeStatus().payoutReady` turns `true` before the first sync.
+3. `Auction` expires, and the first payout claim both opens `PayoutOpen` and claims in one transaction.
+4. `PayoutOpen` expires, and the next period's first contribution finalizes the previous period and contributes to the next one in one transaction.
+5. A member misses contribution, `storedPeriodStatus` stays `Collecting`, and `runtimeStatus().archiveReady` turns `true`.
+6. Extend voting opens, expires after 1 day, and the pool still requires explicit `archive()`.
 
 ---
 
