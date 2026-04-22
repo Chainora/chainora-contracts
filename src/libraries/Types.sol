@@ -15,6 +15,14 @@ library Types {
         Finalized
     }
 
+    enum RuntimeSyncAction {
+        None,
+        ArchiveReady,
+        AuctionReady,
+        PayoutReady,
+        FinalizeReady
+    }
+
     struct PoolConfig {
         uint256 contributionAmount;
         uint256 minReputation;
@@ -52,6 +60,7 @@ library Types {
         uint256 currentCycle;
         uint256 currentPeriod;
         PeriodStatus storedPeriodStatus;
+        RuntimeSyncAction syncAction;
         uint64 startAt;
         uint64 contributionDeadline;
         uint64 auctionDeadline;
@@ -60,11 +69,9 @@ library Types {
         bool extendVoteOpen;
         uint64 extendVoteDeadline;
         bool allActiveContributed;
-        bool archiveReady;
-        bool auctionReady;
-        bool payoutReady;
-        bool finalizeReady;
-        bool extendVoteExpired;
+        address projectedRecipient;
+        uint256 projectedDiscount;
+        uint256 projectedPayoutAmount;
         address[] unpaidActiveMembers;
     }
 }
